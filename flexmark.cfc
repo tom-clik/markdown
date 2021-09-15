@@ -2,11 +2,48 @@
 
 @hint Process markdown with Flexmark and generate meta data 
 
+## Background
+
+Uses https://github.com/vsch/flexmark-java
+
+We have created a simple class to allow for creation of a parser with common modules available.
+
+See java/Flexmark.java for the source or just place Flexmark.jar into your app's java path.
+
+You can then just use it directly (see notes) or use this component which wraps it into a CFML component.
+
+## Usage
+
+The flexmark class takes a comma separated list of options from the following (or all of these if omitted or = "all"):
+
+tables
+abbreviation
+admonition
+anchorlink
+attributes
+autolink
+definition
+emoji
+escapedcharacter
+footnote
+strikethrough
+softbreaks
+
+## Notes
+
 If you just want to parse markdown, you don't need this component. Just use the flexmark
 java class e.g. 
 	
     variables.markdown = createObject( "java", "Flexmark" ).init();
-	variables.markdown.parse(text);
+	variables.markdown.render(text);
+
+## Synopsis
+
+
+
+## History
+
+
 	
 */
 
@@ -18,7 +55,12 @@ component name="flexmark" {
 		
 		this.coldsoup = createObject( "component", "coldsoup.coldSoup" ).init();
 
-		variables.markdown = createObject( "java", "Flexmark" ).init();
+		variables.markdown = createObject( "java", "Flexmark").init();
+
+		this.patternObj = createObject( "java", "java.util.regex.Pattern" );
+		this.alphapattern = this.patternObj.compile("(?m)^@[\w\[\]]+\.?\w*\s+.+?\s*$",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
+		this.varpattern = this.patternObj.compile("(?m)\{\$\w*\_\w*\}",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
+			
 		
 		return this;
 	
@@ -26,7 +68,7 @@ component name="flexmark" {
 
 	/**
 	 *
-	 * @Text  Test to process
+	 * @Text  Text to process
 	 * @options  Options
 	 * @baseurl  Deprecated, use baseurl in options
 	 *
@@ -51,13 +93,121 @@ component name="flexmark" {
 		// NB it's completely legit not to pass baseurl and to omit http:// from the path
 		// this is how it used to work. It will treat all URLs as full urls.
 		if (doc.baseurl neq "" AND right(doc.baseurl,1) neq "/") doc.baseurl &= "/";
-		
+
+		arguments.text = alphameta(arguments.text,doc.meta);
 		doc.html = variables.markdown.render(arguments.text);
 
 		addmeta(doc);
+
+		doc.html = replaceVars(doc.html, doc.meta);
 		
 		return doc;
 
+	}
+
+	/** 
+	 * @hint Add single line @var  references to meta data and remove them
+	 * @text mark down text
+	 * @meta doc meta data
+	 
+	 */
+	public string function alphameta(required string text, required struct meta) {
+		
+		var tags = [];
+		var str = false;
+
+		local.sectionsObj = this.alphapattern.matcher(arguments.text); 
+		
+		while (local.sectionsObj.find()){
+		    ArrayAppend(tags, local.sectionsObj.group());
+		    // writeOutput("<br>" & local.sections.group() & "<br>");
+		}
+
+		local.dodgyVarsToReplace = {}; 
+		local.dodgyVars = this.varpattern.matcher(arguments.text); 
+		while (local.dodgyVars.find()){
+			local.dodgyVarsToReplace[local.dodgyVars.group()] =1;
+		}
+		for (str in local.dodgyVarsToReplace) {
+			local.replaceStr = Replace(str,"_","%%varUndrscReplace%%","all");
+			arguments.text = Replace(arguments.text,str,local.replaceStr,"all");	
+		}
+		
+
+		//writeDump(tags);
+		
+		for (str in tags) {
+			//split on first whitespace
+			local.trimStr = Trim(str);
+			local.tag = ListFirst(local.trimStr," 	");
+			local.data = ListRest(local.trimStr," 	");
+			local.tagRoot = ListFirst(local.tag,"@.[]");
+			if (ListLen(local.tag,"@.") gt 1) {
+				local.tagProperty = ListRest(local.tag,"@.");
+				if (NOT structKeyExists(arguments.meta,local.tagRoot)) {
+					arguments.meta[local.tagRoot] = {};
+				}
+				if (NOT isStruct(arguments.meta[local.tagRoot])) {
+					throw('You have tried to assign a property a value that is not an struct [#local.tag#]')
+				}
+				arguments.meta[local.tagRoot][local.tagProperty] = local.data;
+			}
+			else {
+				if (right(local.tag,2) eq "[]") {
+					if (NOT structKeyExists(arguments.meta,local.tagRoot)) {
+						arguments.meta[local.tagRoot] = [];
+					}
+					if (NOT isArray(arguments.meta[local.tagRoot])) {
+						throw('You have tried to append array data to a value that is not an array [#local.tag#]')
+					}
+					ArrayAppend(arguments.meta[local.tagRoot],local.data);
+				}
+				else {
+					arguments.meta[local.tagRoot] = local.data;
+				}
+			}
+			arguments.text = Replace(arguments.text,str,"",1);
+		}
+
+		return arguments.text;
+			
+	}
+
+	public string function replaceVars(html,data) {
+		
+		//get around problem of extra p surrounding toc
+		arguments.html = REReplace(arguments.html,"\s*\<p[^>]*?\>\s*(\{\$toc\}\s*)\<\/p\>","\1");
+		
+		arguments.html = REReplace(arguments.html,"%%varUndrscReplace%%","_","all");
+
+		local.arrVarNames = REMatch("\{\$[^}]+\}",arguments.html);
+		local.sVarNames = {};
+		// writeDump(local.arrVarNames);
+		// create lookup struct of all vars present in text. Only defined ones are replaced.
+		for (local.i in local.arrVarNames) {
+			local.varName = ListFirst(local.i,"{}$");
+			// syntax with e.g. meta.title not brilliant to work with
+			if (ListLen(local.varName,".") gt 1) {
+				if (IsDefined("arguments.data.#local.varName#")) {
+					local.sVarNames[local.varName] = arguments.data[ListFirst(local.varName,".")][ListLast(local.varName,".")];
+				}
+			}
+			else {
+				if (structKeyExists(arguments.data, local.varName)) {
+					local.sVarNames[local.varName] = arguments.data[local.varName];
+				}
+			}
+		}
+		
+		for (local.varName in local.sVarNames) {
+			// possible problem with referencing complex values.
+			if (isSimpleValue(local.sVarNames[local.varName])) {
+				arguments.html = ReplaceNoCase(arguments.html,"{$#local.varName#}", local.sVarNames[local.varName],"all");
+			}
+		}
+
+		return arguments.html;
+		
 	}
 
 	
@@ -100,7 +250,7 @@ component name="flexmark" {
 			// this gets overridden in flexmark if auto headers is on. See next
 			local.id = header.id();
 			
-			// generate id from header text NB flexmark places th id in to the <a> child tag
+			// generate id from header text NB flexmark places the id in to the <a> child tag
 			local.anchor = header.select("a");
 			if (IsDefined("local.anchor")) {
 				local.id = local.anchor.first().id();
@@ -148,6 +298,22 @@ component name="flexmark" {
 			 	arguments.document.meta.meta.title = local.title.first().text();
 			 }
 		}
+
+
+		// auto cross references
+		local.links = local.node.select("a[href]");
+		// if (!IsDefined(local.links)) {
+			for (local.link in local.links) {
+				local.id = ListLast(local.link.attr("href"),"##");
+				if (StructKeyExists(arguments.document.meta,local.id)) {
+					local.text = local.link.text();
+					if (trim(local.text) eq "") {
+						local.link.html(arguments.document.meta[local.id].text);
+					}
+				}
+			}
+		// }
+		arguments.document.html = local.node.body().html();
 
 	}
 

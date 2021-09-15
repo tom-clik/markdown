@@ -1,7 +1,14 @@
 /*
 # Wripper
 
-## Convert Word filtered "HTML" into Markdown.
+Convert Word filtered "HTML" into Markdown.
+
+## Usage
+
+1. Save WORD doc as Web page (filtered)
+2. Insttaniate component as singleton
+3. Call wrip() method
+
 
 ## Synopsis
 
@@ -9,70 +16,73 @@
 
 We start by stripping rubbish
 
-1.	Empty spans
-	We have to convert nbsp; to normal spaces for these. They are never in the right place.
+1.1	Empty spans
+	We have to convert &nbsp; to normal spaces for these. They are never in the right place.
 
-2.	Empty paras
+1.2	Empty paras
 
-### 3. Remove block tags
+### 2. Remove block tags
 
 Now we convert our block tags, ensuring there's a double line at the end of them.
 
 for each block tag (h1...6, p), strip the front, checking class. Check if there's an anchor inside it, then replace start and end, and add a double return at end.
 
-### 4. Convert tables
+### 3. Convert tables
 
 Loop over each table.
 
 Check if any row or col spans, if not, convert to tab format.
 
-### 5. Whitespace and blocks
+### 4. Whitespace and blocks
 
 Firstly we remove all return chars from our document.
 
 Then we convert the paragraphs and line endings to whitespace.
 
-## Usage
-
-1. Save WORD doc as Web page (filtered)
-2. Save to accessible folder
-3. Pass filename as argument (see demote setting often not needed)
-4. Enjoy HTML in same folder
-
 */
 component {
 
-	// Create our JSoup class. The class mostly has static methods
-	try {
-		this.jsoup = createObject( "component", "coldSoup.coldSoup");
-	}
-	catch (any e) {
-		throw(message="Unable to create Jsoup object",detail="Wripper uses Jsoup to convert word html to markdown. Please ensure you have Jsoup included in your java class path
-			and the coldSoup custom tag in your component path.");
-	}
-	this.jsoup.init();
+	public void function init() {
+		
+		// Jsoup helper class
+		try {
+			this.jsoup = new coldSoup.coldSoup();
+		}
+		catch (any e) {
+			throw(message="Unable to create Jsoup object",detail="Wripper uses Jsoup to convert word html to markdown. Please ensure you have Jsoup included in your java class path
+				and the coldSoup component in your component path.<br><br>#e.message#<br><br>#e.detail#");
+		}
+		
+		// line endings
+		this.cr = chr(13) & chr(10);
 
-	// Class matcher
-	// the classes quote and blockquote are converted to markdown quotes, overriding other classes. 
-	// Classes in this set will also be matched
-	this.paraClasses = {
-		"msoQuote" = "quote",
-		"MsoIntenseQuote" = "quote"
-	};
+		// Class matcher
+		// the classes "quote" and "blockquote" are converted to markdown quotes, overriding other classes. 
+		// Classes in this set will also be matched
+		this.paraClasses = {
+			"msoQuote" = "quote",
+			"MsoIntenseQuote" = "quote"
+		};
 
+		// debug text, trace, request (request.log) or file. 
+		this.debugtype = "none";
+		this.debugFile = "undefined";
+
+
+	}
 	/**
 
 	Convert word html to markdown
 	
-	@htmlStr  word html
-	@footnotes  attempt to parse footnotes
-	@demote  0 = none, 1 = h1->h2 etc
-	@stripnums  remove numbers from headings
-
+	@htmlStr  		word html
+	@footnotes  	attempt to parse footnotes
+	@demote  		0 = none, 1 = h1->h2 etc
+	@stripnums  	remove numbers from headings
+	
 	*/
 	public function wrip(required string htmlStr, boolean footnotes=true,numeric demote=0,boolean stripnums=0) {
 
-		var doc = this.jsoup.jsoup.parse(htmlStr);
+		var doc = this.jsoup.parse(htmlStr);
 
 		local.formatTags = {"b" = "**", "strong" = "**", "i" = "_","em" = "_","code" = "`"};
 		
@@ -113,8 +123,6 @@ component {
 			}
 		}
 
-		// writeDump(footnotes);
-
 		// links 
 		local.nodes = doc.select("a[href]");
 		local.crossRefs = {};
@@ -122,12 +130,12 @@ component {
 			local.attrs = this.jsoup.getAttributes(local.node);
 			local.attrs.link_id = Replace(local.attrs.href,"##","");
 			if (arguments.footnotes AND StructKeyExists(local.footnotes,   local.attrs.link_id)) {
-				//writeOutput("Foot note # attrs.link_id# found<br>");
+				debug("Foot note # attrs.link_id# found<br>");
 				local.linktext = "[^" & local.attrs.link_id & "]";
 				node.parent().after("<p>[^# local.attrs.link_id#]: #local.footnotes[local.attrs.link_id].text#</p>");
 			}
 			else {
-				//writeOutput("Foot note # attrs.link_id# not found<br>");
+				debug("Foot note # attrs.link_id# not found<br>");
 				local.linktext = "[" & local.node.text() & "](" & local.attrs.href & ")";
 			   
 				if (structKeyExists(local.attrs,"name")) {
@@ -152,7 +160,7 @@ component {
 			local.name = local.node.attr("name");
 			if (structKeyExists(local.crossRefs,local.name)) {
 				local.parent = local.node.parent();
-				// writeOutput(parent.outerHtml());
+				debug("Anchor outer html<br><br>" & parent.outerHtml());
 				local.parent.attr("id",local.name);
 			}
 			
@@ -202,16 +210,11 @@ component {
 		}
 
 		// p inside tables -- can't cope with these.
-		local.nodes = doc.select("td>p");
+		local.nodes = doc.select("td>p,th>p");
 		for (local.node in local.nodes) {
 			local.node.unwrap();
 		}
-		local.nodes = doc.select("th>p");
-		for (local.node in local.nodes) {
-			local.node.unwrap();
-		}
-
-
+		
 		// parse tables but we can't put them back in until we' ve finished the rest of the processing
 		// add placeholders {{$tableX}}
 		local.nodes = doc.select("table");
@@ -285,17 +288,20 @@ component {
 
 	/**
 	 * Add attribute string after text in form { #id .class anything=value}
+	 *
+	 * Also returns the attributes as a struct.
 	 * 
 	 * @node jsoup Node to add attributes to  
-	 * @attsToGet list of attributes to get. Blank = a;;
+	 * @attsToGet list of attributes to get. Blank = all
 	 */
-	public struct function addAttributes(node,attsToGet="") {
+	public struct function addAttributes(required object node,string attsToGet="") {
 		var attrs = this.jsoup.getAttributes(arguments.node);
 		var attStr = "";
 		for (var attr in attrs) {
 			if (attrs[attr] neq "" AND (arguments.attsToGet eq "" OR ListFindNoCase(arguments.attsToGet,attr))) {
 				switch (attr) {
 					case "href":case "src":
+						// ignore these
 						break;
 					case "id":
 						attStr = ListAppend(attStr,"##" & attrs[attr], " ");
@@ -310,24 +316,25 @@ component {
 		}
 		
 		if (attStr neq "") {
-			 arguments.node.append(" { #attStr#}");
+			arguments.node.append(" { #attStr#}");
 		}
 
 		return attrs;
 	}
 
 
-
+	/**
+	 * Parse all child nodes and convert to markdown
+	 * 
+	 * @param  tag   jsoup node
+	 * @return markdown formatted string
+	 */
 	private string function parseTags(tag) {
 		
 		var myData = "";
 		var myTag = false;
 
 		for (myTag in arguments.tag.childnodes()) {
-			//writeDump(myTag.getClass().isInstance(myTag));
-			//writeOutput("Tag: " & myTag.getClass().getName());        
-
-			// myData &= myTag.tagName();
 			
 			if (myTag.getClass().getName() eq "org.jsoup.nodes.TextNode"){
 				myData &= myTag.text();
@@ -336,10 +343,10 @@ component {
 			else {
 				
 				if (isBlock(myTag.tagName())) {
-					myData &= chr(13) & chr(10) & chr(13) & chr(10);
+					myData &= this.cr & this.cr;
 				} 
 				else if (isLine(myTag.tagName())) {
-					myData &= chr(13) & chr(10);
+					myData &= this.cr;
 				}
 				
 				local.classList = myTag.attr("class");
@@ -482,7 +489,7 @@ component {
 		var retVal = "";
 
 		if (arguments.class != "") {
-			retVal &= "{ ."	& arguments.class;
+			retVal &= "{ ."	& arguments.class & "}";
 		}
 
 		return retVal;
@@ -615,7 +622,7 @@ component {
 				for (colnum = 1; colnum <= ArrayLen(row); colnum++) {
 					text &= "|" & repeatString("-",maxWidths[colnum]);
 				}
-				text &= chr(13) & chr(10);
+				text &= this.cr;
 			}
 			
 			for (colnum = 1; colnum <= ArrayLen(row); colnum++) {
@@ -629,12 +636,37 @@ component {
 				
 			}
 
-			text &= chr(13) & chr(10);
+			text &= this.cr;
 			rownum += 1;
 		}
 
 		return text;
 	}
+
+	private void function debug(debugText) {
+		switch (this.debugtype) {
+			case "text":
+				WriteOutput(arguments.debugText);
+				break;
+			case "request":
+				param name="request.log" default="";
+				request.log &= arguments.debugText;
+				break;
+			case "trace":
+				Trace(text=arguments.debugText);
+				break;
+			case "file":
+				try {
+					fileAppend(this.debugFile, arguments.debugText);
+				}
+				catch(any e) {
+					throw(message="unable to write to debug log",detail=e.message & e.detail);
+				}
+				break;
+
+		}
+	}
+
 }
 
 

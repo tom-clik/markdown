@@ -14,6 +14,7 @@ Configure and run Preview in browser
 testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
 variables.inputFile  = "markdown_test_doc.md";
 
+
 markdown = createObject("component","markdown.flexmark").init();
 
 mytest = FileRead(testpath & variables.inputFile,"utf-8");
@@ -31,11 +32,10 @@ writeOutput("
 
 WriteOutput(doc.html);
 
-
 writeOutput("</body></html>");
 
 </cfscript>
 
 <!--- <cfif IsDefined("request.log")>
 <cfoutput>#request.log#</cfoutput>
-</cfif> 
+</cfif> --->
