@@ -24,22 +24,18 @@ Ad hoc script to run when you like.
 
 Tom Peer tom@clik.com
 
-## License
-
-Copy it, claim you wrote it, do what you like.
-
 --->
 
 <cfscript>
 
-fileIn = ExpandPath("testing/sources/checkov_plays.md");
+fileIn  = ExpandPath("testing/sources/checkov_plays.md");
 fileOut = Replace(ListLast(fileIn,"\/"),".md","_out.md");
-dirOut = ExpandPath("testing/_out/");
+dirOut  = ExpandPath("testing/_out/");
 
-patternObj = createObject( "java", "java.util.regex.Pattern" );
-parapattern = patternObj.compile("(\r\n){2,}",patternObj.MULTILINE);
-brpattern = patternObj.compile(" *\r\n *",patternObj.MULTILINE);
-fixpattern = patternObj.compile("\<p\>",patternObj.MULTILINE);
+patternObj   = createObject( "java", "java.util.regex.Pattern" );
+parapattern  = patternObj.compile("(\r\n){2,}",patternObj.MULTILINE);
+brpattern    = patternObj.compile(" *\r\n *",patternObj.MULTILINE);
+fixpattern   = patternObj.compile("\<p\>",patternObj.MULTILINE);
 
 myData = FileRead(fileIn,"utf-8");
 
