@@ -10,7 +10,8 @@
         },
         "aliases":{
             "/customtags":"D:\\git\\clikpic\\CustomTags",
-            "/_common":"D:\\git\\clikpic\\wwwroot\\_common"
+            "/_common":"D:\\git\\clikpic\\wwwroot\\_common",
+            "/markdown":"D:\\git\\markdown"
         }
     }
 }
