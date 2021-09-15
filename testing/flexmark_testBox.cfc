@@ -14,10 +14,10 @@ component extends="testbox.system.BaseSpec"{
 	*/
 	function createComponent(){
 		try {
-			local.markdown = createObject("component","markdown.flexmark").init();
+			local.markdown = new markdown.flexmark();
 		}
 		catch (Any e) {
-				$assert.fail( "Failed to create flexmakr component");
+				$assert.fail( "Failed to create flexmark component");
 		}
 	}
 	/**
@@ -25,7 +25,7 @@ component extends="testbox.system.BaseSpec"{
 	*/
 	function parseDocument(){
 		try {
-			local.markdown = createObject("component","markdown.flexmark").init();
+			local.markdown = new markdown.flexmark();
 			local.mytest = FileRead(variables.testpath & variables.inputFile,"utf-8");
 			local.doc = local.markdown.markdown(local.mytest,{},variables.testpath);
 
