@@ -1,0 +1,11 @@
+Table	Seats	Guest	Menu	Notes
+Table CR 1 George Wells	10	Alex Smith	Vegetarian risotto	
+		George Wells	Lamb	
+		Fred Smith	Lamb	
+		Hilary Clinton	Lamb	
+		Mike Purves	Lamb	
+		Emma Purves	Lamb	
+		Paul Gruff	Lamb	
+		Tom Sheen	Lamb	
+		Helen Carter	Vegetarian risotto	
+		Robert Wells	Lamb	

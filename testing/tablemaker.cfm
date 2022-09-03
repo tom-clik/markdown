@@ -16,23 +16,40 @@ Tom Peer tom@clik.com
 
 <cfscript>
 
-fileIn  = ExpandPath("testing/sources/checkov_plays.md");
-fileOut = Replace(ListLast(fileIn,"\/"),".md","_out.md");
-dirOut  = ExpandPath("testing/_out/");
+fileIn  = ExpandPath("sources/tableTest.txt");
+fileOut = Replace(ListLast(fileIn,"\/"),".txt","_out.md");
+dirOut  = ExpandPath("_out/");
 
-patternObj   = createObject( "java", "java.util.regex.Pattern" );
-parapattern  = patternObj.compile("(\r\n){2,}",patternObj.MULTILINE);
-brpattern    = patternObj.compile(" *\r\n *",patternObj.MULTILINE);
-fixpattern   = patternObj.compile("\<p\>",patternObj.MULTILINE);
+try {
+	wripperObj = new markdown.wripper();
+}
 
-myData = FileRead(fileIn,"utf-8");
+catch (any e) {
+	local.extendedinfo = {"tagcontext"=e.tagcontext};
+	throw(
+		extendedinfo = SerializeJSON(local.extendedinfo),
+		message      = "Unable to create wripper opject:" & e.message, 
+		detail       = e.detail,
+		errorcode    = "wripper_test.2"		
+	);
+}
 
-myData = parapattern.matcher(myData).replaceAll("<p>");
-myData = brpattern.matcher(myData).replaceAll(" ");
-myData = fixpattern.matcher(myData).replaceAll(chr(13) & chr(10) & chr(13) & chr(10));
+wripperObj.debugtype = "text";
+try {  
+	mytest = FileRead(fileIn,"utf-8");
+}
+catch (any e) {
+	throw(
+		message      = "Unable to read input file #fileIn#:" & e.message, 
+		detail       = e.detail,
+		errorcode    = "wripper_test.3"		
+	);
+}
 
-FileWrite(dirOut & fileOut, myData, "utf-8");
+mytest = wripperObj.parseTextTable(mytest);
 
-WriteOutput("File converted");
+FileWrite(dirOut & fileOut, mytest, "utf-8");
+
+WriteOutput("File converted to " & dirOut & fileOut);
 
 </cfscript>

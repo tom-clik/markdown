@@ -16,24 +16,31 @@ The CF component providers some eaily accessible methods and an array of additio
 
 Ensure Flexmark.jar is in your server's Java classpath. You may want to install Jsoup at the same time (see following)
 
-If all you want to do is pare Markdown, you can do it with just this component.
+If all you want to do is parse Markdown, you can do it with just this component.
 
 Test your installation with `markdown = createObject( "java", "Flexmark" ).init();`
 
 ### 2. JSoup JAR
 
-The helper component requires Jsoup and a CF wrapper, ColdSoup. First install JSoup into your Java classpath
+The helper component requires Jsoup and a CF wrapper, ColdSoup. First install JSoup into your Java classpath and ensure it loads.
 
+```
+jSoupClass = createObject( "java", "org.jsoup.Jsoup" );
+```
 
-## 2. Flexmark CFC
+## 2. Helper components
 
-### 2.1 Jsoup and ColdSoup
+Now install the helper components to a component path. Best is to have a common library folder set as an additional resource to look for components. Alternatively set up a mapping for coldsoup and .
+
+### 2.1 ColdSoup
 
 The Flexmark CFC requires [ColdSoup](https://github.com/tom-clik/coldsoup), a helper component for [JSoup](https://www.jsoup.org).
 
-Please ensure you have Jsoup in your server class path and then add the coldsoup.cfc to a component path.
+Test your install by trying to create a new flexmark component.
 
-Add Flexmark.cfc to a component path for your server.
+```
+coldsoup = new coldsoup.coldsoup();
+```
 
 ### 2.2 Flexmark
 
@@ -41,8 +48,9 @@ Install flexmark.cfc to a component path.
 
 Test your install by trying to create a new flexmark component.
 
-markdown = new flexmark();
-
+```
+flexmark = new markdown.flexmark();
+```
 
 
 

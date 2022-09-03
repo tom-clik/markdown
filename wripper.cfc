@@ -617,14 +617,7 @@ component {
 		// parse cells in to array of arrays
 		for (row in rows) {
 		   
-		   cells =ListToArray(row,arguments.delimiter,true);
-		   celldata = [];
-		   
-		   for (cell in cells) {
-			   ArrayAppend(celldata,Trim(cell));
-		   }
-
-		   ArrayAppend(rowData,celldata);
+		    ArrayAppend(rowData,cells =ListToArray(row,arguments.delimiter,true));
 
 		}
 		
