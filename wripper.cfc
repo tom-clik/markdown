@@ -47,7 +47,7 @@
  */
 component {
 
-	public void function init() {
+	public wripper function init() {
 		
 		// Jsoup helper class
 		try {
@@ -72,6 +72,8 @@ component {
 		// debug text, trace, request (request.log) or file. 
 		this.debugtype = "none";
 		this.debugFile = "undefined";
+
+		return this;
 	}
 
 	/**
@@ -605,7 +607,7 @@ component {
 	 *
 	 * @return    markdown table
 	 */
-	public string function parseTextTable(required string text, string delimiter=chr(9)) {
+	public string function parseTextTable(required string text, string delimiter="	") {
 
 		var rowData = [];
 		var rows = ListToArray(arguments.text,chr(13) & chr(10));
@@ -617,7 +619,7 @@ component {
 		// parse cells in to array of arrays
 		for (row in rows) {
 		   
-		    ArrayAppend(rowData,cells =ListToArray(row,arguments.delimiter,true));
+		    ArrayAppend(rowData, ListToArray(row,arguments.delimiter,true));
 
 		}
 		
