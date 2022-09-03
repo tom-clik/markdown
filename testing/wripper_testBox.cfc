@@ -1,14 +1,15 @@
-// preview on /flexmark_testBox.cfc?method=runRemote
+// preview on /wripper_testBox.cfc?method=runRemote
 
 component extends="testbox.system.BaseSpec"{
      function beforeTests(){
      	variables.testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
-		variables.inputFile  = "markdown_test_doc.md";
+		variables.inputFile  = "wripper_test_doc2.htm";
      }
      
      function afterTests(){}
 
      function setup( currentMethod ){}
+     
      function teardown( currentMethod ){}
 
 	/**
@@ -16,10 +17,10 @@ component extends="testbox.system.BaseSpec"{
 	*/
 	function createComponent(){
 		try {
-			local.markdown = new markdown.flexmark();
+			local.wripper = new markdown.wripper();
 		}
 		catch (Any e) {
-				$assert.fail( "Failed to create flexmark component");
+				$assert.fail( "Failed to create wripper component");
 		}
 	}
 	/**
@@ -27,9 +28,9 @@ component extends="testbox.system.BaseSpec"{
 	*/
 	function parseDocument(){
 		try {
-			local.markdown = new markdown.flexmark();
+			local.wripper = new markdown.wripper();
 			local.mytest = FileRead(variables.testpath & variables.inputFile,"utf-8");
-			local.doc = local.markdown.markdown(local.mytest,{},variables.testpath);
+			local.doc = local.wripper.wrip(local.mytest);
 
 		}
 		catch (Any e) {

@@ -3,7 +3,7 @@ component {
 		"/markdown" = ExpandPath(".."),
 		"/coldsoup" = ExpandPath("../../coldsoup"),
 		"/docbox" = ExpandPath("../../docbox"),
-		"/testbox" = ExpandPath("../../testbox"),
+		"/testbox" = ExpandPath("../../../testbox"),
 		"/docs" = ExpandPath("../docs")
 	};
 	this.debug = 1;
