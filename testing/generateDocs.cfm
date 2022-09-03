@@ -3,11 +3,15 @@
 
 Generate documentation using [Docbox](https://github.com/Ortus-Solutions/DocBox)
 
+## Usage
+
+See outputPath. See also mappings in application.cfc and aliases in server.json.
+
 */
 
 
-// output folder
-outputFolder = expandPath( '../docs' );
+outputPath = '../docs';
+outputFolder = expandPath(outputPath);
 
 if (! directoryExists(outputFolder)) {
 	try {
@@ -25,7 +29,7 @@ if (! directoryExists(outputFolder)) {
 docbox = new docbox.DocBox(
   strategy = "HTML",
   properties = { 
-    projectTitle="Coldbox", 
+    projectTitle="Markdown", 
     outputDir=outputFolder
   }
 );
@@ -35,5 +39,7 @@ docbox.generate(
     source  = "#expandPath( '..' )#",
     mapping = "markdown"
 );
+
+location(outputPath & "/index.html",false);
 
 </cfscript>

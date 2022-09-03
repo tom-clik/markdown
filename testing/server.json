@@ -3,15 +3,16 @@
         "cfengine":"lucee@5.3.8+201",
         "libDirs":"D:\\apps\\commandbox\\java"
     },
+    "name":"Markdown testing",
     "profile":"development",
     "web":{
         "http":{
             "port":"8084"
         },
         "aliases":{
-            "/customtags":"D:\\git\\clikpic\\CustomTags",
-            "/_common":"D:\\git\\clikpic\\wwwroot\\_common",
-            "/markdown":"D:\\git\\markdown"
-        }
+            "/markdown":"..",
+            "/docs":"../docs"
+        },
+        "welcomeFiles":"flexmark_test.cfm"
     }
 }

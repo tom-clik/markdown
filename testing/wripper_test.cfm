@@ -14,7 +14,9 @@ Test Wripper Word HTML to markdown markdown
 
 <cfscript>
 testPath  = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
+
 fileIn    = "wripper_test_doc2.htm";
+
 fileOut   = Replace(ListLast(fileIn,"\/"),ListLast(fileIn,"."),"md");
 dirOut    = ExpandPath("_out/");
 
@@ -23,16 +25,39 @@ if (! DirectoryExists(dirOut)) {
 		DirectoryCreate(dirOut);
 	}
 	catch (any e) {
-		WriteOutput("Unable to create output directory #dirOut#");
-		writeDump(e);
-		abort;
+		throw(
+			message      = "Unable to create outpur directory data #dirOut#:" & e.message, 
+			detail       = e.detail,
+			errorcode    = "wripper_test.1"		
+		);
 	}
 }
 
-wripperObj = new markdown.wripper();
-wripperObj.debugtype = "text";
+try {
+	wripperObj = new markdown.wripper();
+}
+catch (any e) {
+	local.extendedinfo = {"tagcontext"=e.tagcontext};
+	throw(
+		extendedinfo = SerializeJSON(local.extendedinfo),
+		message      = "Unable to create wripper opject:" & e.message, 
+		detail       = e.detail,
+		errorcode    = "wripper_test.2"		
+	);
+}
 
-mytest = FileRead(testpath & fileIn,"utf-8");
+wripperObj.debugtype = "text";
+try {  
+	mytest = FileRead(testpath & fileIn,"utf-8");
+}
+catch (any e) {
+	throw(
+		message      = "Unable to read input file #testpath#:" & e.message, 
+		detail       = e.detail,
+		errorcode    = "wripper_test.3"		
+	);
+}
+
 doc = wripperObj.wrip(mytest);
 
 filePathOut = dirOut & fileOut;
@@ -40,11 +65,14 @@ filePathOut = dirOut & fileOut;
 try {
 	FileWrite(dirOut & fileOut, doc, "utf-8");
 }
-Catch (any e) {
-	WriteOutput("Unable to save file to #filePathOut#");
-	writeDump(e);
-	abort;	
+catch (any e) {
+	throw(
+		message      = "Unable to save file to #filePathOut#:" & e.message, 
+		detail       = e.detail,
+		errorcode    = "wripper_test.4"		
+	);
 }
+
 writeOutput("File written to #filePathOut#");
 
 </cfscript>

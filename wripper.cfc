@@ -1,45 +1,50 @@
-/*
-# Wripper
-
-Convert Word filtered "HTML" into Markdown.
-
-## Usage
-
-1. Save WORD doc as Web page (filtered)
-2. Insttaniate component as singleton
-3. Call wrip() method
-
-
-## Synopsis
-
-### 1. Strip rubbish
-
-We start by stripping rubbish
-
-1.1	Empty spans
-	We have to convert &nbsp; to normal spaces for these. They are never in the right place.
-
-1.2	Empty paras
-
-### 2. Remove block tags
-
-Now we convert our block tags, ensuring there's a double line at the end of them.
-
-for each block tag (h1...6, p), strip the front, checking class. Check if there's an anchor inside it, then replace start and end, and add a double return at end.
-
-### 3. Convert tables
-
-Loop over each table.
-
-Check if any row or col spans, if not, convert to tab format.
-
-### 4. Whitespace and blocks
-
-Firstly we remove all return chars from our document.
-
-Then we convert the paragraphs and line endings to whitespace.
-
-*/
+/**
+ * Wripper - Convert Word filtered "HTML" into Markdown.
+ *
+ * =====================================================
+ * Usage
+ * =====================================================
+ * 
+ * 1. Save WORD doc as Web page (filtered)
+ * 2. Instantiate component as singleton
+ * 3. Call wrip() method
+ * 
+ * =====================================================
+ * Synopsis
+ * =====================================================
+ * 
+ * -----------------------------------------------------
+ * 1. Strip rubbish
+ * -----------------------------------------------------
+ * We start by stripping rubbish
+ * 
+ * 1.1	Empty spans
+ *	 We have to convert &nbsp; to normal spaces for these. They are never in the right place.
+ * 
+ * 1.2	Empty paras
+ * 
+ * -----------------------------------------------------
+ * 2. Remove block tags
+ * -----------------------------------------------------
+ * Now we convert our block tags, ensuring there's a double line at the end of them.
+ * 
+ * For each block tag (h1...6, p), strip the front, checking class. Check if there's an anchor inside it, 
+ * then replace start and  end, and add a double return at end.
+ * 
+ * -----------------------------------------------------
+ * 3. Convert tables
+ * -----------------------------------------------------
+ * Loop over each table.
+ * 
+ * Check if any row or col spans, if not, convert to tab format.
+ * 
+ * -----------------------------------------------------
+ * 4. Whitespace and blocks
+ * -----------------------------------------------------
+ * Firstly we remove all return chars from our document.
+ * 
+ * Then we convert the paragraphs and line endings to whitespace.
+ */
 component {
 
 	public void function init() {
@@ -54,7 +59,7 @@ component {
 		}
 		
 		// line endings
-		this.cr = chr(13) & chr(10);
+		this.cr = newLine();
 
 		// Class matcher
 		// the classes "quote" and "blockquote" are converted to markdown quotes, overriding other classes. 
@@ -67,20 +72,18 @@ component {
 		// debug text, trace, request (request.log) or file. 
 		this.debugtype = "none";
 		this.debugFile = "undefined";
-
-
 	}
-	/**
 
-	Convert word html to markdown
-	
-	@htmlStr  		word html
-	@footnotes  	attempt to parse footnotes
-	@demote  		0 = none, 1 = h1->h2 etc
-	@stripnums  	remove numbers from headings
-	
-	*/
-	public function wrip(required string htmlStr, boolean footnotes=true,numeric demote=0,boolean stripnums=0) {
+	/**
+ 	 * Convert word html to markdown
+	 * 
+	 * @htmlStr  	word html
+	 * @footnotes  	attempt to parse footnotes
+	 * @demote  	0 = none, 1 = h1->h2 etc
+	 * @stripnums  	remove numbers from headings
+	 * @return      Markdown text
+	 */
+	public string function wrip(required string htmlStr, boolean footnotes=true,numeric demote=0,boolean stripnums=0) {
 
 		var doc = this.jsoup.parse(htmlStr);
 
@@ -193,8 +196,6 @@ component {
 			}
 		}
 
-
-
 		// images 
 		local.nodes = doc.select("img");
 		for (local.node in local.nodes) {
@@ -209,12 +210,13 @@ component {
 				local.node.remove();
 		}
 
-		// p inside tables -- can't cope with these.
+		
+		// can't cope with p's inside table cells
 		local.nodes = doc.select("td>p,th>p");
 		for (local.node in local.nodes) {
 			local.node.unwrap();
 		}
-		
+
 		// parse tables but we can't put them back in until we' ve finished the rest of the processing
 		// add placeholders {{$tableX}}
 		local.nodes = doc.select("table");
@@ -275,24 +277,24 @@ component {
 
 
 		local.tags = doc.body();
-		local.myData = parseTags(doc.body());
+		local.markdown = htmlToMarkdown(doc.body());
 
 		// put the parsed tables back in.
 		for (local.table in local.tables) {
-			local.myData = Replace(local.myData,"{{$table#local.table#}}",local.tables[local.table]);
+			local.markdown = Replace(local.markdown,"{{$table#local.table#}}",local.tables[local.table]);
 		}
 
-		return local.myData;
+		return local.markdown;
 			
 	}
 
 	/**
-	 * Add attribute string after text in form { #id .class anything=value}
+	 * @hint Add attribute string after text in form { #id .class anything=value}
 	 *
-	 * Also returns the attributes as a struct.
-	 * 
 	 * @node jsoup Node to add attributes to  
 	 * @attsToGet list of attributes to get. Blank = all
+	 *
+	 * @return  the attributes as a struct.
 	 */
 	public struct function addAttributes(required object node,string attsToGet="") {
 		var attrs = this.jsoup.getAttributes(arguments.node);
@@ -322,14 +324,13 @@ component {
 		return attrs;
 	}
 
-
 	/**
-	 * Parse all child nodes and convert to markdown
+	 * Parse clean html tags and convert to markdown
 	 * 
-	 * @param  tag   jsoup node
+	 * @tag   jsoup node
 	 * @return markdown formatted string
 	 */
-	private string function parseTags(tag) {
+	private string function htmlToMarkdown(tag) {
 		
 		var myData = "";
 		var myTag = false;
@@ -362,31 +363,37 @@ component {
 
 				try {
 					if (ArrayLen(myTag.childNodes())) {
-						myData &= parseTags(myTag);
+						myData &= htmlToMarkdown(myTag);
 					}
 				}
-				catch (Exception e) {
-					savecontent variable="local.temp" {
-						 WriteDump(myTag);
+				catch (any e) {
+					try {
+						local.html = myTag.html();
 					}
-					throw(message="unable to parse tags",detail="#local.temp#");
-				   
+					catch (any e2) {
+						local.html = "Unable to get html for tag";
+					}
+
+					local.extendedinfo = {"tagcontext"=e.tagcontext,"tag"=myTag,"html"=local.html};
+					throw(
+						extendedinfo = SerializeJSON(local.extendedinfo),
+						message      = "unable to parse tags:" & e.message, 
+						detail       = e.detail,
+						errorcode    = "wripper.htmlToMarkdown.1"		
+					);
 				}
-
-				// reserved 
-				//myData &= closeTag(myTag.tagName(),local.class);
-
+			
 			}
 		}
 		return myData;
 	}
 
 	/**
-	 * @hint      is the tag a block element?
+	 * @hint   is the tag a block element?
 	 *
 	 * @mytag  The tag
 	 *
-	 * @return     True if the specified mytag is block, False otherwise.
+	 * @return  True if the specified mytag is block, False otherwise.
 	 */
 	private boolean function isBlock(mytag) {
 		var i=0;
@@ -407,7 +414,7 @@ component {
 	}
 
 	/**
-	 * @hint      is the tag a line element?
+	 * @hint   is the tag a line element?
 	 *
 	 * @mytag  The tag
 	 *
@@ -483,29 +490,15 @@ component {
 		return i;
 	}
 
-	// Close a tag with attibute syntax { #id .class}
-	private string function closeTag(mytag,class="") {
-
-		var retVal = "";
-
-		if (arguments.class != "") {
-			retVal &= "{ ."	& arguments.class & "}";
-		}
-
-		return retVal;
-
-	}
-	
-
 	/**
 	* Fixes text using Microsoft Latin-1 &quot;Extentions&quot;, namely ASCII characters 128-160.
 	*
 	* @text      Text to be modified. (Required)
-	* @return Returns a string.
-	* @author Shawn Porter (sporter@rit.net)
-	* @version 1, June 16, 2004
+	* @return    Returns a string.
+	* @author    Shawn Porter (sporter@rit.net)
+	* @version   1, June 16, 2004
 	*/
-	public string function DeMoronize (textin) {
+	public string function DeMoronize (required string textin) {
 		var i = 0;
 		var text = arguments.textin;
 		// map incompatible non-ISO characters into plausible
@@ -545,9 +538,7 @@ component {
 		//text = Replace(text, Chr(160), "&nbsp;", "All"); see below word uses these for anything
 
 		text = Replace(text, Chr(163), "&pound;", "All");
-
 		text = Replace(text, Chr(169), "&copy;", "All");
-
 		text = Replace(text, Chr(176), "&deg;", "All");
 
 		// encode ASCII 160-255 using &#999; format
@@ -559,9 +550,9 @@ component {
 		text = ReReplace(text, "&##([0-2][[:digit:]]{2})([^;])", "&##\1;\2", "All");
 		
 		// fix obscure numeric rendering of &lt; &gt; &amp;
-		text = ReReplace(text, "&##038;", "&amp;", "All");
-		text = ReReplace(text, "&##060;", "&lt;", "All");
-		text = ReReplace(text, "&##062;", "&gt;", "All");
+		text = Replace(text, "&##038;", "&amp;", "All");
+		text = Replace(text, "&##060;", "&lt;", "All");
+		text = Replace(text, "&##062;", "&gt;", "All");
 
 		// supply missing semicolon at the end of &amp; &quot;
 		text = ReReplace(text, "&amp(^;)", "&amp;\1", "All");
@@ -587,62 +578,155 @@ component {
 		var cells = false;
 		var celldata = false;
 		var cell = false;
-		var maxWidths = {};
-		var headerRow = arguments.tableNode.select("th");
-		var colnum = false;
-		var rownum = 1;
+		
 		
 		// parse cells in to array of arrays
 		for (row in rows) {
 		   
 		   cells = row.select("td,th");
-		   celldata = ArrayNew(1);
+		   celldata = [];
 		   
 		   for (cell in cells) {
-		   	   
 			   ArrayAppend(celldata,Trim(cell.text()));
-			   colnum = ArrayLen(celldata);
-			  	
-			   // for nice formatting, caclulate max width of column
-			   if (NOT structKeyExists(maxWidths, colnum) OR  maxWidths[colnum] lt Len(celldata[colnum])) {
-					maxWidths[colnum] = Len(celldata[colnum]);
-			   }
 		   }
 
 		   ArrayAppend(rowData,celldata);
 
 		}
 		
-		// write out markdown table
-		rownum = 1;
-		for (row in rowData) {
-
-			// write out divider
-			if (rownum eq 2) {
-				for (colnum = 1; colnum <= ArrayLen(row); colnum++) {
-					text &= "|" & repeatString("-",maxWidths[colnum]);
-				}
-				text &= this.cr;
-			}
-			
-			for (colnum = 1; colnum <= ArrayLen(row); colnum++) {
-				text &= "|";
-				if (maxWidths[colnum] gt 0) {
-					 text &= LJustify(row[colnum], maxWidths[colnum]);
-				}
-				else {
-					text &= row[colnum];
-				}
-				
-			}
-
-			text &= this.cr;
-			rownum += 1;
-		}
-
-		return text;
+		return markdownTable(rowData);
 	}
 
+	/**
+	 * @hint     parse tab sepearted text into a markdown table
+	 *
+	 * @text  Jsoup node
+	 * @delimiter  delimiter (single char, tab or comma used)
+	 *
+	 * @return    markdown table
+	 */
+	public string function parseTextTable(required string text, string delimiter=chr(9)) {
+
+		var rowData = [];
+		var rows = ListToArray(arguments.text,chr(13) & chr(10));
+		var row = false;
+		var cells = false;
+		var celldata = false;
+		var cell = false;
+		
+		// parse cells in to array of arrays
+		for (row in rows) {
+		   
+		   cells =ListToArray(row,arguments.delimiter,true);
+		   celldata = [];
+		   
+		   for (cell in cells) {
+			   ArrayAppend(celldata,Trim(cell));
+		   }
+
+		   ArrayAppend(rowData,celldata);
+
+		}
+		
+		return markdownTable(rowData);
+	}
+
+
+	/**
+	 * Create a markdown table from parse row data
+	 *
+	 * @see parseTable, parseTextTable
+	 * 
+	 * @rows  Array of arrays of cell data
+	 * @return Markdown formatted cells
+	 */
+	private string function markdownTable(required array rows) {
+		local.maxWidths = {};
+		
+		// for nice formatting, caclulate max width of column
+		for (local.row in arguments.rows) {
+			
+			for (local.col = 1; local.col lte ArrayLen(local.row); local.col++) {
+					
+				local.cell = local.row[local.col];
+			
+				if (NOT structKeyExists(local.maxWidths, local.col) OR  local.maxWidths[local.col] lt Len(local.cell)) {
+					local.maxWidths[local.col] = Len(local.cell);
+				}
+			}
+
+		}
+
+		// write out markdown table
+		local.rownum = 1;
+		local.text = "";
+
+		for (local.row in arguments.rows) {
+			
+			// write out divider
+			if (local.rownum eq 2) {
+				for (local.col = 1; local.col lte ArrayLen(local.row); local.col++) {
+					local.text &= "|" & repeatString("-",local.maxWidths[local.col]);
+				}
+				local.text &= this.cr;
+			}
+			
+			for (local.col = 1; local.col lte ArrayLen(local.row); local.col++) {
+				//remove bold from first row
+				local.cellText = (local.rownum eq 1) ? Replace(local.row[local.col],"**","","all") : local.row[local.col];
+				local.text &= "|";
+				local.text &= LJustify(local.cellText, local.maxWidths[local.col]);
+			}
+
+			local.text &= this.cr;
+			local.rownum += 1;
+		}
+
+		return local.text;
+
+	}
+
+	/**
+	 * @hint read in plain text files with single line breaks in the middle of sentences and convert them to wrapped format
+	 * 
+	 * ## Background
+	 * 
+	 * Flexmark can be initialised with softbreak functionality. This is often useful and my preferrred way of working.
+	 * 
+	 * This file will crudely convert files with wrapped lines into a soft-break compatible one.
+	 * 
+	 * ## Synopsis
+	 * 
+	 * 1. Match every multiple line and replace break with `<p>`
+	 * 2. Join every remaining line break
+	 * 3. Replace the `<p>` tags with double returns
+	 * 
+	 * @text  Text with with wrapped lines
+	 * @return Unwrapped text
+	 * @author Tom Peer tom@clik.com
+	 * 
+	 */
+	
+	public string function lineBreaker(required string text) {
+
+		patternObj   = createObject( "java", "java.util.regex.Pattern" );
+		parapattern  = patternObj.compile("(\r\n){2,}",patternObj.MULTILINE);
+		brpattern    = patternObj.compile(" *\r\n *",patternObj.MULTILINE);
+		fixpattern   = patternObj.compile("\<p\>",patternObj.MULTILINE);
+
+		arguments.text = parapattern.matcher(arguments.text).replaceAll("<p>");
+		arguments.text = brpattern.matcher(arguments.text).replaceAll(" ");
+		arguments.text = fixpattern.matcher(arguments.text).replaceAll(chr(13) & chr(10) & chr(13) & chr(10));
+
+		return arguments.text
+			
+	}
+
+	/**
+	 * Write debug string to preferred output 
+	 * 
+	 * @debugText  Test to wrtie
+	 */
 	private void function debug(debugText) {
 		switch (this.debugtype) {
 			case "text":
@@ -660,7 +744,7 @@ component {
 					fileAppend(this.debugFile, arguments.debugText);
 				}
 				catch(any e) {
-					throw(message="unable to write to debug log",detail=e.message & e.detail);
+					throw(message="unable to write to debug log;e.message",detail= e.detail);
 				}
 				break;
 

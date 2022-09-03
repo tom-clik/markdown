@@ -1,3 +1,4 @@
+//http://local.clikpic.com:8084/flexmark_testBox.cfc?method=runRemote
 component extends="testbox.system.BaseSpec"{
      function beforeTests(){
      	variables.testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";

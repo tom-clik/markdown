@@ -1,24 +1,12 @@
 <!--- 
 
-# linebreaker
+# tablemaker
 
-read in plain text files with single line breaks in the middle of sentences and convert them to wrapped format
-
-## Background
-
-Flexmark can be initialised with softbreak functionality. This is often useful and my preferrred way of working.
-
-This file will crudely convert files with wrapped lines into a soft-break compatible one.
-
-## Synopsis
-
-1. Match every multiple line and replace break with <p>
-2. Join every remaining line break
-3. Replace the <p> tags with double returns
+Make nice markdown tables from tabbed or csv text
 
 ## Usage
 
-Ad hoc script to run when you like.
+Ad hoc script demonstrating table make.
 
 ## Author
 

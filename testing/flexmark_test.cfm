@@ -2,7 +2,7 @@
 
 # flexmark test
 
-Test Flexmark markdown parsing
+Sample Flexmark markdown parsing
 
 ## Usage
 
@@ -14,11 +14,13 @@ Configure and run Preview in browser
 testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
 variables.inputFile  = "markdown_test_doc.md";
 
-markdown = new markdown.flexmark();
+flexmark = new markdown.flexmark();
 
 mytest = FileRead(testpath & variables.inputFile,"utf-8");
 
-doc = markdown.markdown(mytest,{},testpath);
+doc = flexmark.markdown(mytest,{},testpath);
+
+writeDump(doc.meta);
 
 writeOutput("
 <html>

@@ -96,6 +96,8 @@ More text with a footnote[^footnote2]
 <div class="endmatter">
 
 @author  Meta Extension Required
+@toclevel 2
+@notoc h3
 
 ### Title: _{$meta.title}_
 
