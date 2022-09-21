@@ -1,5 +1,7 @@
 # Title {#title}
 
+By Tom Peer {#author}
+
 ## Heading with class {#myid .class otheratt=whatver}
 
 **Lorem ipsum** dolor sit amet, _consectetur adipisicing elit_, sed do eiusmod

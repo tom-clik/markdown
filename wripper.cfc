@@ -116,31 +116,44 @@ component {
 
 		// guess footnotes from class
 		if (arguments.footnotes) {
-			local.footnotes = {};
-			local.nodes = doc.select("p.MsoFootnoteText");
-			for (local.node in local.nodes) {
-				local.link = node.select("a").first();
-				local.attrs = this.jsoup.getAttributes(local.link);
-				local.link.remove();
-				local.attrs.text = node.html();
-				local.footnotes[attrs.name] = local.attrs;
-				local.node.remove();
+			local.types = {
+				"footnotes"="p.MsoFootnoteText",
+				"endnotes"="p.MsoEndnoteText",
+			};
+			local.notes = {};
+			for (local.type in ["footnotes","endnotes"]) {
+
+				local.nodes = doc.select(local.types[local.type]);
+				for (local.node in local.nodes) {
+					local.link = node.select("a").first();
+					local.attrs = this.jsoup.getAttributes(local.link);
+					local.link.remove();
+					local.attrs.text = node.html();
+					local.notes[local.type][attrs.name] = local.attrs;
+					local.node.remove();
+					debug("Added #local.type# #attrs.name#<br>");
+				}
 			}
 		}
 
 		// links 
 		local.nodes = doc.select("a[href]");
 		local.crossRefs = {};
+		local.endnoteCount = 1;
 		for (local.node in local.nodes) {
 			local.attrs = this.jsoup.getAttributes(local.node);
 			local.attrs.link_id = Replace(local.attrs.href,"##","");
-			if (arguments.footnotes AND StructKeyExists(local.footnotes,   local.attrs.link_id)) {
-				debug("Foot note # attrs.link_id# found<br>");
+			if (arguments.footnotes AND StructKeyExists(local.notes.footnotes, local.attrs.link_id)) {
+				debug("Link is foot note #local.attrs.link_id#<br>");
 				local.linktext = "[^" & local.attrs.link_id & "]";
-				node.parent().after("<p>[^# local.attrs.link_id#]: #local.footnotes[local.attrs.link_id].text#</p>");
+				node.parent().after("<p>[^# local.attrs.link_id#]: #local.notes.footnotes[local.attrs.link_id].text#</p>");
+			}
+			else if (arguments.footnotes AND StructKeyExists(local.notes.endnotes, local.attrs.link_id)) {
+				debug("Link is end note #local.attrs.link_id#<br>");
+				local.linktext = "[#local.endnoteCount#](##" & local.attrs.link_id & "){###local.attrs.link_id#_link}";
+				doc.body().append("<p class='endnote'>[#local.endnoteCount#](###local.attrs.link_id#_link): #local.notes.endnotes[local.attrs.link_id].text#{###local.attrs.link_id#}</p>");
 			}
 			else {
-				debug("Foot note # attrs.link_id# not found<br>");
 				local.linktext = "[" & local.node.text() & "](" & local.attrs.href & ")";
 			   
 				if (structKeyExists(local.attrs,"name")) {
