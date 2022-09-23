@@ -1,6 +1,6 @@
 /**
 
-Process markdown with Flexmark and generate meta data 
+Process markdown with Flexmark and generate data 
 
 ## Background
 
@@ -92,7 +92,7 @@ component name="flexmark" {
 	 *
 	 * html
 	 * :The rendered html
-	 * meta
+	 * data
 	 * : A struct of information about the document keyed by element id. Contaings heading text
 	 * 
 	 * 
@@ -101,12 +101,12 @@ component name="flexmark" {
 	 * @options  Options
 	 * @baseurl  Deprecated, use baseurl in options
 	 *
-	 * @return Struct with keys html and meta (see notes)
+	 * @return Struct with keys html and data (see notes)
 	 *
 	 */
 	public struct function markdown (required string text, struct options, string baseurl) {
 		
-		var doc = {"meta" = {},"baseurl"=""};
+		var doc = {"data" = {"meta"={}},"baseurl"=""};
 
 		if (IsDefined("arguments.options")) {
 			StructAppend(doc,arguments.options);
@@ -125,13 +125,13 @@ component name="flexmark" {
 		// this is how it used to work. It will treat all URLs as full urls.
 		if (doc.baseurl neq "" AND right(doc.baseurl,1) neq "/") doc.baseurl &= "/";
 
-		arguments.text = alphameta(arguments.text,doc.meta);
+		arguments.text = alphameta(arguments.text,doc.data.meta);
 
 		doc.html = variables.markdown.render(arguments.text);
 
-		addmeta(doc);
+		addData(doc);
 
-		doc.html = replaceVars(doc.html, doc.meta);
+		doc.html = replaceVars(doc.html, doc.data.meta);
 		
 		return doc;
 
@@ -236,7 +236,7 @@ component name="flexmark" {
 		// create lookup struct of all vars present in text. Only defined ones are replaced.
 		for (local.i in local.arrVarNames) {
 			local.varName = ListFirst(local.i,"{}$");
-			// syntax with e.g. meta.title not brilliant to work with
+			// dot syntax not recommended
 			if (ListLen(local.varName,".") gt 1) {
 				if (IsDefined("arguments.data.#local.varName#")) {
 					local.sVarNames[local.varName] = arguments.data[ListFirst(local.varName,".")][ListLast(local.varName,".")];
@@ -248,12 +248,18 @@ component name="flexmark" {
 				}
 			}
 		}
-		
+
 		for (local.varName in local.sVarNames) {
+			local.val = "";
 			// possible problem with referencing complex values.
 			if (IsSimpleValue(local.sVarNames[local.varName])) {
-				arguments.html = ReplaceNoCase(arguments.html,"{$#local.varName#}", local.sVarNames[local.varName],"all");
+				local.val = local.sVarNames[local.varName];
 			}
+			else if (IsStruct(local.sVarNames[local.varName]) AND StructKeyExists(local.sVarNames[local.varName],"text")) {
+				local.val = local.sVarNames[local.varName].text;	
+			}
+			arguments.html = ReplaceNoCase(arguments.html,"{$#local.varName#}", local.val,"all");
+
 		}
 
 		return arguments.html;
@@ -263,29 +269,28 @@ component name="flexmark" {
 	/**
 	 * @hint Create meta data for the document
 	 *
-	 * TODO: rename to data to avoid confusion with meta
 	 * 
 	 */
-	public void function addmeta(required struct document) {
+	public void function addData(required struct document) {
 		
 		local.node = this.coldsoup.parse(arguments.document.html);
 
-		if (NOT structKeyExists(arguments.document,"meta")) {
-			arguments.document.meta = {};
+		if (NOT structKeyExists(arguments.document,"data")) {
+			arguments.document.data = {};
 		}
 
-		// meta.meta is html meta tags
-		if (NOT structKeyExists(arguments.document.meta,"meta")) {
-			arguments.document.meta.meta = {};
+		// data.meta was originally html meta tags but now generic variable thing
+		if (NOT structKeyExists(arguments.document.data,"meta")) {
+			arguments.document.data.meta = {};
 		}
 
 		// notoc is list of jsoup selectors to apply "notoc" class
-		if (StructKeyExists(arguments.document.meta,"notoc")) {
-			if (NOT IsArray(arguments.document.meta.notoc)) {
-				local.toc = ListToArray(arguments.document.meta.notoc);
+		if (StructKeyExists(arguments.document.data,"notoc")) {
+			if (NOT IsArray(arguments.document.data.notoc)) {
+				local.toc = ListToArray(arguments.document.data.notoc);
 			}
 			else {
-				local.toc = arguments.document.meta.notoc;
+				local.toc = arguments.document.data.notoc;
 			}
  			
 			for (var notocrule in local.toc) {
@@ -334,8 +339,8 @@ component name="flexmark" {
 				local.id = LCase(ReReplace(Replace(header.text()," ","-","all"), "[^\w\-]", "", "all"));
 				header.attr("id",local.id);
 			}
-			// add entry to meta for all cases
-			arguments.document.meta[local.id] = {id=local.id,text=header.text(),level=replace(header.tagName(), "h", ""),hasToc=yesNoFormat(header.hasClass("notoc"))};
+			// add entry to data for all cases
+			arguments.document.data[local.id] = {id=local.id,text=header.text(),level=replace(header.tagName(), "h", ""),hasToc=yesNoFormat(header.hasClass("notoc"))};
 			
 			// add to toc list if not excluded
 			if (NOT header.hasClass("notoc")) {
@@ -347,34 +352,33 @@ component name="flexmark" {
 			}
 		}
 
-		arguments.document.meta["tocList"] = idList;
-		arguments.document.meta["toc"] = generateTocHTML(idlist,arguments.document.meta);
+		arguments.document.data["tocList"] = idList;
+		arguments.document.data["toc"] = generateTocHTML(idlist,arguments.document.data);
 		
-		// check meta data not dumped into root and assign values from default headings
-		for (var field in ['title','author','description']) {
-			if (StructKeyExists(arguments.document.meta,field) AND NOT StructKeyExists(arguments.document.meta.meta,field)) {
-				if (IsStruct(arguments.document.meta[field])) {
-					if (StructKeyExists(arguments.document.meta[field], "text")) {
-						arguments.document.meta.meta[field] = arguments.document.meta[field].text;
+		// Assign values from default headings to meta fields
+		for (var field in ['title','author','subject']) {
+			if (StructKeyExists(arguments.document.data,field) AND NOT StructKeyExists(arguments.document.data.meta,field)) {
+				if (IsStruct(arguments.document.data[field])) {
+					if (StructKeyExists(arguments.document.data[field], "text")) {
+						arguments.document.data.meta[field] = arguments.document.data[field].text;
 					}
 				}
 				else {
-					arguments.document.meta.meta[field] = arguments.document.meta[field];
+					// really shoudn't be happening any more
+					arguments.document.data.meta[field] = arguments.document.meta[field];
 				}
 			}
 		}
 
 		// if not title set by id=title attribute then get first h1 tag
-		if (NOT structKeyExists(arguments.document.meta.meta, "title")) {
+		if (NOT structKeyExists(arguments.document.data.meta, "title")) {
 
 			 local.title = local.node.select("h1");
 
 			 if (IsDefined("local.title") AND ArrayLen(local.title)) {
-			 	arguments.document.meta.meta.title = local.title.first().text();
+			 	arguments.document.data.meta.title = local.title.first().text();
 			 }
 		}
-
-
 
 		// auto cross references
 		local.links = local.node.select("a[href]");
@@ -383,13 +387,12 @@ component name="flexmark" {
 			
 			local.id = ListLast(local.link.attr("href"),"##");
 			
-			if (StructKeyExists(arguments.document.meta,local.id)) {
+			if (StructKeyExists(arguments.document.data,local.id)) {
 				local.text = local.link.text();
 				if (trim(local.text) eq "") {
-					local.link.html(arguments.document.meta[local.id].text);
+					local.link.html(arguments.document.data[local.id].text);
 				}
 			}
-			
 			
 		}
 		
@@ -401,10 +404,10 @@ component name="flexmark" {
 	 * Generate HTML for a table of contents.
 	 * 
 	 * @idlist   List of IDs in order
-	 * @meta     Meta data (see addmeta(). Each heading needs an entry which is a struct with keys level,text, and id)
+	 * @data     Document data (see addData(). Each heading needs an entry which is a struct with keys level,text, and id)
 	 * @return   Formatted HTML
 	 */
-	private string function generateTocHTML(required array idlist, required struct meta) {
+	private string function generateTocHTML(required array idlist, required struct data) {
 		
 		var line = false;
 		local.open = 0;
@@ -413,12 +416,12 @@ component name="flexmark" {
 		local.toc = "<div id=""toc"" class=""manual"">";
 
 		// default level for TOC headings
-		if (NOT StructKeyExists(arguments.meta,"toclevel")) arguments.meta.toclevel = 3;
+		if (NOT StructKeyExists(arguments.data,"toclevel")) arguments.data.toclevel = 3;
 
 		for (var id in arguments.idlist) {
-			if (StructKeyExists(arguments.meta,id)) {
-				line = arguments.meta[id];
-				if (line.level AND line.level lte arguments.meta.toclevel) {
+			if (StructKeyExists(arguments.data,id)) {
+				line = arguments.data[id];
+				if (line.level AND line.level lte arguments.data.toclevel) {
 					if (line.level eq 1) {
 						if (local.open) local.toc &= "  </div>";
 						//- bit of a legacy - styling used to be applied to the toc div which

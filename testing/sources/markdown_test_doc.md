@@ -1,6 +1,6 @@
-# Title {#title}
+# Document title here {#title}
 
-By Tom Peer {#author}
+# Basics
 
 ## Heading with class {#myid .class otheratt=whatver}
 
@@ -13,15 +13,22 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 [reflink]: http://www.testlink.com "A test link"
 
-<p>_Any_ <span> old html</span> in here</p>
+<p>_Any_ <span> [old](html)</span> **in here**</p>
 
     <div>
     <p>This should be code</p>
     </div>
 
+
+[Any old link](http://news.bbc.co.uk 'Hello')
+
+![](sources/wripper_test_doc_files/image001.jpg){style="right" width="122mm"}
+
 ## Some code
 
 `**<b>list 2</b>**`
+
+# Lists
 
 ## Numeric list
 
@@ -61,6 +68,8 @@ Some text with a footnote[^footnote]
 
 {.simplelist data-note="Should apply to list element"}
 
+## Definition list
+
 Deflist 1
 :    Defintiion here
 
@@ -69,21 +78,30 @@ Deflist 2
 :    Otehr Defintiion here
 {.deflist}
 
+# Footnotes
+
 More text with a footnote[^footnote2]
 
 [^footnote2]: This is another footnote
 
-> qUote
+# Quotes
+
+> quote
+
+# Admonitions
 
 !!! note "Note title"
     This is a highlight
 
-!!! alert
+!!! danger
     Great Danger
 
-[Any old link](http://news.bbc.co.uk 'Hello')
+# To do lists
 
-![](sources/wripper_test_doc_files/image001.jpg){style="right" width="122mm"}
+-[] Stuff to do 1
+-[] Stuff to do 2
+
+# Tables
 
 | table  | table 1    | table 2 |
 |:------:|------------|--------:|
@@ -91,15 +109,15 @@ More text with a footnote[^footnote2]
 || cell 4  | cell 5
 { .info}
 
-## Table of contents {#contents .notoc}
+# Table of contents {#contents .notoc}
 
 {$toc}
 
 <div class="endmatter">
 
-@author  Meta Extension Required
+@author  Tom Peer
 @toclevel 2
-@notoc h3
+@notoc #title,h3
 
 ### Title: _{$meta.title}_
 
