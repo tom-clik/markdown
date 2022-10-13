@@ -6,34 +6,9 @@ Process markdown with Flexmark and generate data
 
 Uses https://github.com/vsch/flexmark-java
 
-We have created a simple class to allow for creation of a parser with common modules available.
-
-See java/Flexmark.java for the source or just place Flexmark.jar into your app's java path.
-
-You can then just use it directly (see notes) or use this component which wraps it into a CFML component.
-
 ## Usage
 
-The flexmark class takes a comma separated list of options from the following (or all of these if omitted):
 
-1. tables
-1. abbreviation
-1. admonition
-1. anchorlink
-1. attributes
-1. autolink
-1. definition
-1. emoji
-1. escapedcharacter
-1. footnote
-1. strikethrough
-1. softbreaks
-
-If you just want to parse markdown, you don't need this component. Just use the flexmark
-java class e.g. 
-	
-    variables.markdown = createObject( "java", "Flexmark" ).init();
-	variables.markdown.render(text);
 
 ## Notes
 
@@ -61,7 +36,11 @@ component name="flexmark" {
 			boolean escapedcharacter=true,
 			boolean footnote=true,
 			boolean strikethrough=true,
-			boolean unwrapAnchors=true
+			boolean unwrapAnchors=true,
+			boolean softbreaks=false,
+			boolean macros=true,
+			boolean typographic = false,
+			boolean tasklist = true
 			) {
 	
 		this.cr            = chr(10);
@@ -74,7 +53,26 @@ component name="flexmark" {
 			local.optionString = listAppend(local.optionString, option & "=" & arguments[option]);
 		}
 
-		variables.markdown = createObject( "java", "Flexmark").init();
+		var HtmlRendererClass = createObject( "java", "com.vladsch.flexmark.html.HtmlRenderer" );
+		var ParserClass = createObject( "java", "com.vladsch.flexmark.parser.Parser" );
+		var options = createObject( "java", "com.vladsch.flexmark.util.data.MutableDataSet" ).init();
+		var extensions = optionList(optionsSet=arguments);
+		
+		
+		
+		options.set(ParserClass.EXTENSIONS,extensions);
+		
+		if (arguments.softbreaks) {
+			options.set(HtmlRendererClass.SOFT_BREAK, "<br />\n");
+		}
+		if (arguments.anchorlinks_wrap_text) {
+			var AnchorLinkExtensionClass = createObject( "java", "com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension"); 
+			options.set(AnchorLinkExtensionClass.ANCHORLINKS_WRAP_TEXT,arguments.anchorlinks_wrap_text);
+		}
+
+		// Create our parser and renderer - both using the options.
+		variables.parser = ParserClass.builder( options ).build();
+		variables.renderer = HtmlRendererClass.builder( options ).build();
 
 		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
 		this.alphapattern  = this.patternObj.compile("(?m)^@[\w\[\]]+\.?\w*\s+.+?\s*$",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
@@ -83,6 +81,58 @@ component name="flexmark" {
 		
 		return this;
 	
+	}
+
+	private function optionList(struct optionsSet) {
+
+		var extensions = createObject( "java", "java.util.ArrayList" );
+
+		if (optionsSet.keyExists("tables") && optionsSet["tables"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.tables.TablesExtension").create());
+		}
+		if (optionsSet.keyExists("abbreviation") && optionsSet["abbreviation"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.abbreviation.AbbreviationExtension").create());
+		}
+		if (optionsSet.keyExists("admonition") && optionsSet["admonition"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.admonition.AdmonitionExtension").create());
+			import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
+		}
+		if (optionsSet.keyExists("anchorlink") && optionsSet["anchorlink"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension").create());
+		}
+		if (optionsSet.keyExists("attributes") && optionsSet["attributes"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.attributes.AttributesExtension").create());
+		}
+		if (optionsSet.keyExists("autolink") && optionsSet["autolink"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.autolink.AutolinkExtension").create());
+		}
+		if (optionsSet.keyExists("definition") && optionsSet["definition"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.definition.DefinitionExtension").create());
+		}
+		if (optionsSet.keyExists("emoji") && optionsSet["emoji"]) {
+			import com.vladsch.flexmark.ext.emoji.EmojiExtension;
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.emoji.EmojiExtension").create());
+		}
+		if (optionsSet.keyExists("escapedcharacter") && optionsSet["escapedcharacter"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.escaped.character.EscapedCharacterExtension").create());
+		}
+		if (optionsSet.keyExists("footnote") && optionsSet["footnote"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.footnotes.FootnoteExtension").create());
+		}
+		if (optionsSet.keyExists("macros") && optionsSet["macros"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.macros.MacrosExtension").create());
+		}
+		if (optionsSet.keyExists("strikethrough") && optionsSet["strikethrough"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension").create());
+		}
+		if (optionsSet.keyExists("tasklist") && optionsSet["tasklist"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension").create());
+		}
+		if (optionsSet.keyExists("typographic") && optionsSet["typographic"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.typographic.TypographicExtension").create());
+		}
+
+		return extensions;
 	}
 
 	/**
@@ -127,8 +177,9 @@ component name="flexmark" {
 
 		arguments.text = alphameta(arguments.text,doc.data.meta);
 
-		doc.html = variables.markdown.render(arguments.text);
-
+		local.document = variables.parser.parse(arguments.text);
+		doc.html = variables.renderer.render(local.document); 
+		
 		addData(doc);
 
 		doc.html = replaceVars(doc.html, doc.data.meta);
@@ -284,20 +335,20 @@ component name="flexmark" {
 			arguments.document.data.meta = {};
 		}
 
-		// notoc is list of jsoup selectors to apply "notoc" class
-		if (StructKeyExists(arguments.document.data,"notoc")) {
-			if (NOT IsArray(arguments.document.data.notoc)) {
-				local.toc = ListToArray(arguments.document.data.notoc);
+		// notoc is list of jsoup selectors to exclude from toc. Apply "notoc" class to nodes to do this
+		if (StructKeyExists(arguments.document.data.meta,"notoc")) {
+			if (NOT IsArray(arguments.document.data.meta.notoc)) {
+				local.notocSelectors = ListToArray(arguments.document.data.meta.notoc);
 			}
 			else {
-				local.toc = arguments.document.data.notoc;
+				local.notocSelectors = arguments.document.data.meta.notoc;
 			}
  			
-			for (var notocrule in local.toc) {
+			for (local.notocrule in local.notocSelectors) {
 				
-				local.notocnodes = local.node.select(Trim(notocrule));
+				local.notocnodes = local.node.select(Trim(local.notocrule));
 				
-				for (var local.notocNode in local.notocnodes) {
+				for (local.notocNode in local.notocnodes) {
 					local.notocNode.addClass("notoc");
 				}
 			}
@@ -340,10 +391,11 @@ component name="flexmark" {
 				header.attr("id",local.id);
 			}
 			// add entry to data for all cases
-			arguments.document.data[local.id] = {id=local.id,text=header.text(),level=replace(header.tagName(), "h", ""),hasToc=yesNoFormat(header.hasClass("notoc"))};
+			local.noToc = header.hasClass("notoc");
+			arguments.document.data[local.id] = {"id"=local.id,text=header.text(),"level"=replace(header.tagName(), "h", ""),"toc"=NOT local.noToc};
 			
 			// add to toc list if not excluded
-			if (NOT header.hasClass("notoc")) {
+			if (NOT local.noToc) {
 				ArrayAppend(idList,local.id);
 				header.addClass("hastoc");
 			}
@@ -353,7 +405,7 @@ component name="flexmark" {
 		}
 
 		arguments.document.data["tocList"] = idList;
-		arguments.document.data["toc"] = generateTocHTML(idlist,arguments.document.data);
+		arguments.document.data.meta["toc"] = generateTocHTML(idlist,arguments.document.data);
 		
 		// Assign values from default headings to meta fields
 		for (var field in ['title','author','subject']) {

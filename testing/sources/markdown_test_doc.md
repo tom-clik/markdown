@@ -4,10 +4,10 @@
 
 ## Heading with class {#myid .class otheratt=whatver}
 
-**Lorem ipsum** dolor sit amet, _consectetur adipisicing elit_, sed do eiusmod
-tempor incididunt ut labore et dolore magna aliqua. *Ut enim* ad minim veniam,
-quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
-consequat. [Duis aute][reflink] irure dolor in reprehenderit in voluptate velit esse
+**Lorem ipsum**... dolor---sit amet, _consectetur adipisicing elit_, sed do eiusmod
+tempor incididunt ut labore et dolore--magna aliqua. *Ut enim* ad minim veniam,
+quis nostrud exercitation ullamco 'laboris nis' ut aliquip ex <<ea commodo>>
+consequat. [Duis aute][reflink] irure dolor in reprehenderit in "voluptate velit" esse
 cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
 proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
@@ -98,8 +98,10 @@ More text with a footnote[^footnote2]
 
 # To do lists
 
--[] Stuff to do 1
--[] Stuff to do 2
+- [ ] Stuff to do 1
+- [ ] Stuff to do 2
+- [x] Stuff done 1
+- [X] Stuff done 1
 
 # Tables
 
@@ -113,15 +115,42 @@ More text with a footnote[^footnote2]
 
 {$toc}
 
+
+# Macros
+
+|   Complex   |     Data     |
+|-------------|--------------|
+| <<<macro>>> | <<<macro2>>> |
+
+>>>macro
+1. Item 1
+2. Item 2
+3. Item 3
+
+| Column 1 | Column 2 |
+|----------|----------|
+| a        | b        |
+| c        | d        |
+
+> Block Quote and more
+
+<<<
+
+>>>macro2
+- Item 1
+- Item 2
+- Item 3
+<<<
+
 <div class="endmatter">
 
 @author  Tom Peer
 @toclevel 2
 @notoc #title,h3
 
-### Title: _{$meta.title}_
+### Title: _{$title}_
 
-### Author: _{$meta.author}_
+### Author: _{$author}_
 
 </div>
 

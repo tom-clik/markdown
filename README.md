@@ -4,21 +4,13 @@ Helper component for using Flexmark with CFML
 
 ## Background
 
-Project containers a Java class (Flexmark.jar) and a CF component (flexmark.cfc) to aid working with [Flexmark](https://github.com/vsch/flexmark-java)
-
-The Java class takes a string of options and creates a Flexmark parser with the necessary extensions.
-
-The CF component providers some eaily accessible methods and an array of additional functionality for producing documents. It isn't necessary if all you want to do is parase markdown, you can just use the Java Class.
+Simpler helper component to make working with Flexmark easy.
 
 ## Installation
 
 ### 1. Flexmark JAR
 
-Ensure Flexmark.jar is in your server's Java classpath. You may want to install Jsoup at the same time (see following)
-
-If all you want to do is parse Markdown, you can do it with just this component.
-
-Test your installation with `markdown = createObject( "java", "Flexmark" ).init();`
+Ensure Flexmark the flexmark jar is in your server's Java classpath. You may want to install Jsoup at the same time (see following)
 
 ### 2. JSoup JAR
 
@@ -30,7 +22,7 @@ jSoupClass = createObject( "java", "org.jsoup.Jsoup" );
 
 ## 2. Helper components
 
-Now install the helper components to a component path. Best is to have a common library folder set as an additional resource to look for components. Alternatively set up a mapping for coldsoup and .
+Now install the helper components to a component path. Best is to have a common library folder set as an additional resource to look for components in that folder and sub folders.
 
 ### 2.1 ColdSoup
 
@@ -52,5 +44,41 @@ Test your install by trying to create a new flexmark component.
 flexmark = new markdown.flexmark();
 ```
 
+## Usage
 
+Initiate as a singleton pattern component and then call the markdown method.
+
+```
+application.flexmark = new markdown.flexmark();
+
+doc = application.flexmark.markdown(mytest,{"baseurl"="https://www.somepathon.web/"});
+```
+
+doc will contain two keys, "`html`" and "`data`""
+
+## Options
+
+Each of the major extensions can be loaded by supplying arguments to the init function. Most are loaded by default and you'll need to turn them off if you don't want them.
+
+| Extension             | Default
+|-----------------------|---------
+| abbreviation          | true
+| admonition            | true
+| anchorlink            | true
+| anchorlinks_wrap_text | true
+| attributes            | false
+| autolink              | true
+| definition            | true
+| emoji                 | true
+| escapedcharacter      | true
+| footnote              | true
+| strikethrough         | true
+| softbreaks            | false
+| macros                | true
+| typographic           | false
+| tasklist              | true
+
+An additional option `unwrapAnchors`  copes with a bug with the anchorlink extension. Leave this on.
+
+## Meta data
 
