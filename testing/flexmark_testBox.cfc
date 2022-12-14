@@ -36,4 +36,18 @@ component extends="testbox.system.BaseSpec"{
 				$assert.fail( "Failed to parse document #e.message#");
 		}
 	}
+	/**
+	* @test
+	*/
+	function simpleConverions(){
+		try {
+			local.markdown = new markdown.flexmark();
+			local.mytest = FileRead(variables.testpath & variables.inputFile,"utf-8");
+			local.doc = local.markdown.toHtml(local.mytest);
+
+		}
+		catch (Any e) {
+				$assert.fail( "Failed to parse document #e.message#");
+		}
+	}
 }

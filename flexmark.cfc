@@ -177,15 +177,22 @@ component name="flexmark" {
 
 		arguments.text = alphameta(arguments.text,doc.data.meta);
 
-		local.document = variables.parser.parse(arguments.text);
-		doc.html = variables.renderer.render(local.document); 
+		doc.html = toHtml(arguments.text); 
 		
 		addData(doc);
-
+			
 		doc.html = replaceVars(doc.html, doc.data.meta);
 		
 		return doc;
 
+	}
+
+	/**
+	 * Plain markdown to html conversion
+	 */
+	public string function toHtml(required string text) {
+		local.document = variables.parser.parse(arguments.text);
+		return variables.renderer.render(local.document); 
 	}
 
 	/** 
