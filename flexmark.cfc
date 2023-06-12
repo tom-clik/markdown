@@ -40,7 +40,8 @@ component name="flexmark" {
 			boolean softbreaks=false,
 			boolean macros=true,
 			boolean typographic = false,
-			boolean tasklist = true
+			boolean tasklist = true,
+			boolean yaml = true
 			) {
 	
 		this.cr            = chr(10);
@@ -57,8 +58,6 @@ component name="flexmark" {
 		var ParserClass = createObject( "java", "com.vladsch.flexmark.parser.Parser" );
 		var options = createObject( "java", "com.vladsch.flexmark.util.data.MutableDataSet" ).init();
 		var extensions = optionList(optionsSet=arguments);
-		
-		
 		
 		options.set(ParserClass.EXTENSIONS,extensions);
 		
@@ -77,7 +76,8 @@ component name="flexmark" {
 		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
 		this.alphapattern  = this.patternObj.compile("(?m)^@[\w\[\]]+\.?\w*\s+.+?\s*$",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
 		this.varpattern    = this.patternObj.compile("(?m)\{\$\w*\_\w*\}",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
-			
+		
+		variables.yaml = arguments.yaml;
 		
 		return this;
 	
@@ -131,6 +131,9 @@ component name="flexmark" {
 		if (optionsSet.keyExists("typographic") && optionsSet["typographic"]) {
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.typographic.TypographicExtension").create());
 		}
+		if (optionsSet.keyExists("yaml") && optionsSet["yaml"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.yaml.front.matter.YamlFrontMatterExtension").create());
+		}
 
 		return extensions;
 	}
@@ -175,10 +178,13 @@ component name="flexmark" {
 		// this is how it used to work. It will treat all URLs as full urls.
 		if (doc.baseurl neq "" AND right(doc.baseurl,1) neq "/") doc.baseurl &= "/";
 
+		local.meta = {};
+
 		arguments.text = alphameta(arguments.text,doc.data.meta);
 
-		doc.html = toHtml(arguments.text); 
-		
+		doc.html = toHtml(text=arguments.text,data=local.meta); 
+		StructAppend(doc.data.meta, local.meta);
+
 		addData(doc);
 			
 		doc.html = replaceVars(doc.html, doc.data.meta);
@@ -190,8 +196,19 @@ component name="flexmark" {
 	/**
 	 * Plain markdown to html conversion
 	 */
-	public string function toHtml(required string text) {
+	public string function toHtml(required string text, struct data={}) {
 		local.document = variables.parser.parse(arguments.text);
+		if (variables.yaml) {
+			local.yamlVisitor = createObject( "java", "com.vladsch.flexmark.ext.yaml.front.matter.AbstractYamlFrontMatterVisitor");
+			local.yamlVisitor.visit(document);
+			local.metadata = local.yamlVisitor.getData();
+			if (local.metadata.size()) {
+				for (local.key in local.metadata.keySet()) {
+					arguments.data[local.key] = Trim(local.metadata.get(local.key)[1]);
+				}
+			}
+			
+		}
 		return variables.renderer.render(local.document); 
 	}
 
