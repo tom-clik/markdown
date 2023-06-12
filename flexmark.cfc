@@ -204,7 +204,24 @@ component name="flexmark" {
 			local.metadata = local.yamlVisitor.getData();
 			if (local.metadata.size()) {
 				for (local.key in local.metadata.keySet()) {
-					arguments.data[local.key] = Trim(local.metadata.get(local.key)[1]);
+					local.keyData =local.metadata.get(local.key);
+
+					try {
+						if ( ! ArrayLen(local.keyData) ) {
+							arguments.data[local.key] = "";
+						}
+						else {
+							arguments.data[local.key] = Trim(local.keyData[1]);
+						}
+					}
+					catch (any e) {
+						local.extendedinfo = {"tagcontext"=e.tagcontext,"keyData"=local.keyData};
+						throw(
+							extendedinfo = SerializeJSON(local.extendedinfo),
+							message      = "Unable to parse Yaml:" & e.message, 
+							detail       = e.detail
+						);
+					}
 				}
 			}
 			
