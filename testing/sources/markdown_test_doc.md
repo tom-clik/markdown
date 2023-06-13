@@ -1,3 +1,9 @@
+---
+author: Tom Peer
+toclevel: 2
+notoc: #title,h3
+---
+
 # Document title here {#title}
 
 # Basics
@@ -76,6 +82,7 @@ Deflist 1
 Deflist 2
 :    Defintiion here
 :    Otehr Defintiion here
+
 {.deflist}
 
 # Footnotes
@@ -122,6 +129,8 @@ More text with a footnote[^footnote2]
 |-------------|--------------|
 | <<<macro>>> | <<<macro2>>> |
 
+{.table}
+
 >>>macro
 1. Item 1
 2. Item 2
@@ -143,10 +152,6 @@ More text with a footnote[^footnote2]
 <<<
 
 <div class="endmatter">
-
-@author  Tom Peer
-@toclevel 2
-@notoc #title,h3
 
 ### Title: _{$title}_
 

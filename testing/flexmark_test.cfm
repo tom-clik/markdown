@@ -25,8 +25,9 @@ doc = flexmark.markdown(mytest,{},testpath);
 
 html = replace(mytemplate, "{$body}", doc.html);
 html = flexmark.replaceVars(html, doc.data.meta);
-writeDump(doc.data);
 
 writeOutput(html);
+
+writeDump(var=doc.data,label="Meta Data");
 
 </cfscript>
