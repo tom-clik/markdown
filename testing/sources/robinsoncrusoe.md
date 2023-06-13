@@ -1,6 +1,7 @@
-@title The Life and Adventures of Robinson Crusoe 
-@author Daniel Defoe 
-
+---
+title: The Life and Adventures of Robinson Crusoe 
+author: Daniel Defoe 
+---
 
 /* The Project Gutenberg eBook, The Life and Adventures of Robinson Crusoe, by Daniel Defoe
 

@@ -1,0 +1,62 @@
+.blockquote {
+    padding: 60px 80px 40px;
+    position: relative;
+}
+
+blockquote{
+  font-size: 1.4em;
+  width:60%;
+  margin:50px auto;
+  font-family:Open Sans;
+  font-style:italic;
+  color: #555555;
+  padding:1.2em 30px 1.2em 75px;
+  border-left:8px solid #78C0A8 ;
+  line-height:1.6;
+  position: relative;
+  background:#EDEDED;
+}
+
+blockquote::before{
+  font-family:Arial;
+  content: "\201C";
+  color:#78C0A8;
+  font-size:4em;
+  position: absolute;
+  left: 10px;
+  top:-10px;
+}
+
+blockquote::after{
+  content: '';
+}
+
+blockquote span{
+  display:block;
+  color:#333333;
+  font-style: normal;
+  font-weight: bold;
+  margin-top:1em;
+}
+
+table {
+	--table-border-width:0;
+	--table-border-style:solid;
+	--table-border-color:#333333;
+	border-width: var(--table-border-width);
+	border-style: var(--table-border-style);
+	border-color: var(--table-border-color);
+	border-collapse: separate;
+	width: auto;/* will override leagcy table width= settings */
+}
+
+th, td  {
+	border-width: var(--table-border-width);
+	border-style: var(--table-border-style);
+	border-color: var(--table-border-color);
+	padding: 2px;
+}
+
+.table {
+	--table-border-width:1px;
+}

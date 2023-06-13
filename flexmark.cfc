@@ -4,11 +4,11 @@ Process markdown with Flexmark and generate data
 
 ## Background
 
-Uses https://github.com/vsch/flexmark-java
+Uses [Flexmark](https://github.com/vsch/flexmark-java) to render HTML and produce Meta data.
 
 ## Usage
 
-
+See README.md
 
 ## Notes
 
@@ -44,9 +44,15 @@ component name="flexmark" {
 			boolean yaml = true
 			) {
 	
-		this.cr            = newLine();
+		this.cr = newLine();
 		
-		this.coldsoup      = new coldsoup.coldsoup();
+		try {
+			this.coldsoup      = new coldsoup.coldsoup();
+			variables.useJsoup = 1;
+		}
+		catch (any e) {
+			variables.useJsoup = 1;
+		}
 		
 		variables.unwrapAnchors = arguments.unwrapAnchors;
 
@@ -140,7 +146,7 @@ component name="flexmark" {
 	}
 
 	/**
-	 * @hint Render markdown as html
+	 * @hint Convert to html and generate meta data
 	 *
 	 * Returns a struct with keys 
 	 *
@@ -181,6 +187,7 @@ component name="flexmark" {
 
 		local.meta = {};
 
+		// legacy functionality - use YAML
 		arguments.text = alphameta(arguments.text,doc.data.meta);
 
 		doc.html = toHtml(text=arguments.text,data=local.meta); 
