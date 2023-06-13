@@ -187,7 +187,7 @@ component name="flexmark" {
 
 		local.meta = {};
 
-		// legacy functionality - use YAML
+		// legacy functionality - use YAML instead
 		arguments.text = alphameta(arguments.text,doc.data.meta);
 
 		doc.html = toHtml(text=arguments.text,data=local.meta); 
