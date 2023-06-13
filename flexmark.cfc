@@ -44,9 +44,10 @@ component name="flexmark" {
 			boolean yaml = true
 			) {
 	
-		this.cr            = chr(10);
+		this.cr            = newLine();
 		
 		this.coldsoup      = new coldsoup.coldsoup();
+		
 		variables.unwrapAnchors = arguments.unwrapAnchors;
 
 		local.optionString = "";
@@ -195,6 +196,9 @@ component name="flexmark" {
 
 	/**
 	 * Plain markdown to html conversion
+	 
+	 * @text          Markdown text to convert
+	 * @data          Struct to update with YAML data
 	 */
 	public string function toHtml(required string text, struct data={}) {
 		local.document = variables.parser.parse(arguments.text);
@@ -314,7 +318,7 @@ component name="flexmark" {
 	 * Originally meant for mustache compatibility, this has extended to allow nested structs with . notation for the
 	 * variables
 	 *
-	 */
+	 **/
 	public string function replaceVars(html,data) {
 		
 		//get around problem of extra p surrounding toc

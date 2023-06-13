@@ -1,60 +1,53 @@
 # CF Markdown
 
-Helper component for using Flexmark with CFML
-
-## Background
-
-Simpler helper component to make working with Flexmark easy.
+CF Markdown provides a convenient wrapper for the Flexmark Java library. It provides simple HTML conversion or more complex document manipulation using Jsoup (optional).
 
 ## Installation
 
 ### 1. Flexmark JAR
 
-Ensure Flexmark the flexmark jar is in your server's Java classpath. You may want to install Jsoup at the same time (see following)
+Ensure Flexmark the [flexmark jar](https://mvnrepository.com/artifact/com.vladsch.flexmark/flexmark-all) is [loadable by your app](https://cfdocs.org/java). This can either be by putting it into your server's Java classpath or in a path defined in `application.javaSettings.loadPaths`. The latter is recommended.
 
-### 2. JSoup JAR
+### 2. CF Markdown
 
-The helper component requires Jsoup and a CF wrapper, ColdSoup. First install JSoup into your Java classpath and ensure it loads.
-
-```
-jSoupClass = createObject( "java", "org.jsoup.Jsoup" );
-```
-
-## 2. Helper components
-
-Now install the helper components to a component path. Best is to have a common library folder set as an additional resource to look for components in that folder and sub folders.
-
-### 2.1 ColdSoup
-
-The Flexmark CFC requires [ColdSoup](https://github.com/tom-clik/coldsoup), a helper component for [JSoup](https://www.jsoup.org).
-
-Test your install by trying to create a new flexmark component.
-
-```
-coldsoup = new coldsoup.coldsoup();
-```
-
-### 2.2 Flexmark
-
-Install flexmark.cfc to a component path.
-
-Test your install by trying to create a new flexmark component.
+Download this repository to a component path and test your install by trying to create a new flexmark component.
 
 ```
 flexmark = new markdown.flexmark();
 ```
 
+You should now be able to use the `toHtml()` method to convert markdown to HTML.
+
+### 3. JSoup JAR
+
+To use the more advance functions such as TOC creation, you can install [Jsoup](https://mvnrepository.com/artifact/org.jsoup/jsoup) in the same way as the Flexmark library and ensure it loads.
+
+```
+jSoupClass = createObject( "java", "org.jsoup.Jsoup" );
+```
+
+### 4. ColdSoup
+
+If you install JSoup you will also need [ColdSoup](https://github.com/tom-clik/coldsoup). Install to a [component path](https://docs.lucee.org/guides/cookbooks/application-context-set-mapping.html#component-and-custom-tag-mappings).
+
+Test your install by trying to create a new coldsoup component.
+
+```
+coldsoup = new coldsoup.coldsoup();
+```
+
 ## Usage
 
-Initiate as a singleton pattern component and then call the markdown method.
+Initiate as a singleton pattern component in a persistent scope and then call the toHTML method.
 
 ```
 application.flexmark = new markdown.flexmark();
 
-doc = application.flexmark.markdown(mytest,{"baseurl"="https://www.somepathon.web/"});
+data = {};
+html = application.flexmark.toHTML(markdown,data);
 ```
 
-doc will contain two keys, "`html`" and "`data`""
+`data` will contain any YAML data you have added.
 
 ## Options
 
@@ -77,8 +70,12 @@ Each of the major extensions can be loaded by supplying arguments to the init fu
 | macros                | true
 | typographic           | false
 | tasklist              | true
+| yaml                  | true
 
 An additional option `unwrapAnchors`  copes with a bug with the anchorlink extension. Leave this on.
 
 ## Meta data
 
+Yaml meta data is on by default. It is returned in the `data` struct passed as an argument.
+
+For more advanced meta data, you can use the `markdown()` method which examines the IDs of elements and constructs a TOC and other meta data.
