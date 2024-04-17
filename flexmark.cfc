@@ -48,12 +48,19 @@ component name="flexmark" {
 		
 		try {
 			this.coldsoup      = new coldsoup.coldsoup();
-			variables.useJsoup = 1;
+			variables.useJsoup = true;
 		}
 		catch (any e) {
-			variables.useJsoup = 1;
+			variables.useJsoup = false;
 		}
 		
+		// doc properties allows us to use YAML to define 
+		// publishing properties like toclevel.
+		variables.docProperties = {
+			"toclevel" = 3,
+			"notoc" = ""
+		};
+
 		variables.unwrapAnchors = arguments.unwrapAnchors;
 
 		local.optionString = "";
@@ -83,7 +90,8 @@ component name="flexmark" {
 		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
 		this.alphapattern  = this.patternObj.compile("(?m)^@[\w\[\]]+\.?\w*\s+.+?\s*$",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
 		this.varpattern    = this.patternObj.compile("(?m)\{\$\w*\_\w*\}",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
-		
+		this.includepattern    = this.patternObj.compile("\<div\s+(href=\s*['\""](.*?)['\""]).*?\/\>",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
+
 		variables.yaml = arguments.yaml;
 		
 		return this;
@@ -158,42 +166,46 @@ component name="flexmark" {
 	 * 
 	 *
 	 * @Text  Text to process
-	 * @options  Options
-	 * @baseurl  Deprecated, use baseurl in options
+	 * @options  Publishing options, see docProperties. Will override any set in YAML
 	 *
 	 * @return Struct with keys html and data (see notes)
 	 *
 	 */
-	public struct function markdown (required string text, struct options, string baseurl) {
+	public struct function markdown (required string text, struct options={}) localmode=true {
 		
-		var doc = {"data" = {"meta"={}},"baseurl"=""};
-
-		if (IsDefined("arguments.options")) {
-			StructAppend(doc,arguments.options);
+		if (!variables.useJsoup ) {
+			throw("use of markdown() function requires coldsoup. Use toHtml() instead.");
 		}
 
-		// legacy individual option.
-		if (IsDefined("arguments.baseurl")) {
-			doc.baseurl = arguments.baseurl;
-		}
+		doc = {"data" = {"meta"={}}};
 
 		doc.text = arguments.text;
-		doc.baseurl=Replace(doc.baseurl,"\","/","all");
 		
-		// add trailing slash to all baseurls
-		// NB it's completely legit not to pass baseurl and to omit http:// from the path
-		// this is how it used to work. It will treat all URLs as full urls.
-		if (doc.baseurl neq "" AND right(doc.baseurl,1) neq "/") doc.baseurl &= "/";
+		meta = {};
 
-		local.meta = {};
+		doc.html = toHtml(text=arguments.text,data=meta); 
+		
+		// remove doc properties from meta and add to main struct
+		// This allows us to use YAML to defined publishing properties
+		// like toclevel but keeps the meta data clean
 
-		// legacy functionality - use YAML instead
-		arguments.text = alphameta(arguments.text,doc.data.meta);
+		for (prop in variables.docProperties) {
+			if (StructKeyExists(arguments.options, prop) ) {
+				doc.data["#prop#"] = arguments.options[prop];
+			}
+			else if (StructKeyExists(meta, prop) ) {
+				doc.data["#prop#"] = meta[prop];
+				StructDelete(meta, prop);
+			}
+			// else add default
+			else if (variables.docProperties[prop] neq "") {
+				doc.data["#prop#"] = variables.docProperties[prop];
+			}
+		}
 
-		doc.html = toHtml(text=arguments.text,data=local.meta); 
-		StructAppend(doc.data.meta, local.meta);
+		StructAppend(doc.data.meta, meta);
 
-		addData(doc);
+		addContent(doc);
 			
 		doc.html = replaceVars(doc.html, doc.data.meta);
 		
@@ -240,87 +252,39 @@ component name="flexmark" {
 		return variables.renderer.render(local.document); 
 	}
 
-	/** 
-	 * @hint Add single line @var  references to meta data and remove them
-	 * @text markdown text
-	 * @meta doc meta data
+	/**
+	 * @hint Read an index file and run markdown() on the result
 	 *
-	 * @return text with @vars removed
-	 
+	 * An index file can include other markdown files. Include them
+	 * using <div href='filename.md' />
+	 *
+	 * Note that the syntax is quite fussy.
+	 * 
 	 */
-	public string function alphameta(required string text, required struct meta) {
+	public struct function readIndex (required string filename) localmode=true {
 		
-		var tags = [];
-		var str = false;
+		filepath = GetDirectoryFromPath(arguments.filename);
+		text = FileRead(arguments.filename);
 		
-		// handle underscores in variable names.
-		local.dodgyVarsToReplace = {}; 
-		local.dodgyVars = this.varpattern.matcher(arguments.text); 
-		while (local.dodgyVars.find()){
-			local.dodgyVar = local.dodgyVars.group();
-			if (Find("_",local.dodgyVar)) {
-				local.dodgyVarsToReplace[local.dodgyVar] =1;
-			}
+		includes = this.includepattern.matcher(text);
+		
+		while (includes.find()) {
+			includeText = FileRead(filepath & "/" & includes.group(javacast("int",2)));
+			tag = Replace(includes.group(javacast("int",0)),includes.group(javacast("int",1)),"");
+			tag = Replace(tag,"/>",">");
+			tag = ReReplace(tag,"\s+\>",">");
+			tag &= newLine() & newLine() & includeText & newLine() & "</div>";
+			text = Replace(text,includes.group(javacast("int",0)), tag);
 		}
 		
-		for (str in local.dodgyVarsToReplace) {
-			local.replaceStr = Replace(str,"_","%%varUndrscReplace%%","all");
-			arguments.text = Replace(arguments.text,str,local.replaceStr,"all");	
-		}
+		return markdown(text);
 
-		// create array of alpha vars to deal with
-		local.tagMatch = this.alphapattern.matcher(arguments.text); 
-		
-		while (local.tagMatch.find()){
-		    ArrayAppend(tags, local.tagMatch.group());
-		}
-
-		for (str in tags) {
-			//split on first whitespace
-			local.trimStr = Trim(str);
-			local.tag = ListFirst(local.trimStr," 	");
-			local.data = ListRest(local.trimStr," 	");
-			local.tagRoot = ListFirst(local.tag,"@.[]");
-			// struct
-			if (ListLen(local.tag,"@.") gt 1) {
-				local.tagProperty = ListRest(local.tag,"@.");
-				if (NOT StructKeyExists(arguments.meta,local.tagRoot)) {
-					arguments.meta[local.tagRoot] = {};
-				}
-				if (NOT IsStruct(arguments.meta[local.tagRoot])) {
-					throw('You have tried to assign a property a value that is not an struct [#local.tag#]')
-				}
-				arguments.meta[local.tagRoot][local.tagProperty] = local.data;
-			}
-			else {
-				// array
-				if (Right(local.tag,2) eq "[]") {
-					if (NOT StructKeyExists(arguments.meta,local.tagRoot)) {
-						arguments.meta[local.tagRoot] = [];
-					}
-					if (NOT IsArray(arguments.meta[local.tagRoot])) {
-						throw('You have tried to append array data to a value that is not an array [#local.tag#]')
-					}
-					ArrayAppend(arguments.meta[local.tagRoot],local.data);
-				}
-				// simple value
-				else {
-					arguments.meta[local.tagRoot] = local.data;
-				}
-			}
-
-			// remove the line
-			arguments.text = Replace(arguments.text,str,"",1);
-		}
-
-		return arguments.text;
-			
 	}
 
 	/**
 	 * @hint Replace mustache like variables with values form data struct
 	 *
-	 * Variables in form {varname} are replaced with values from a data struct
+	 * Variables in form {$varname} are replaced with values from a data struct
 	 *
 	 * Originally meant for mustache compatibility, this has extended to allow nested structs with . notation for the
 	 * variables
@@ -331,15 +295,17 @@ component name="flexmark" {
 		//get around problem of extra p surrounding toc
 		arguments.html    = REReplace(arguments.html,"\s*\<p[^>]*?\>\s*(\{\$toc\}\s*)\<\/p\>","\1");
 		
+		// deprecated underscore handler
 		arguments.html    = REReplace(arguments.html,"%%varUndrscReplace%%","_","all");
 
+		// find all variable names
 		local.arrVarNames = REMatch("\{\$[^}]+\}",arguments.html);
 		local.sVarNames   = {};
 		
-		// create lookup struct of all vars present in text. Only defined ones are replaced.
+		// create lookup struct of all vars present in text.
 		for (local.i in local.arrVarNames) {
 			local.varName = ListFirst(local.i,"{}$");
-			// dot syntax not recommended
+			// TODO: only works for one level
 			if (ListLen(local.varName,".") gt 1) {
 				if (IsDefined("arguments.data.#local.varName#")) {
 					local.sVarNames[local.varName] = arguments.data[ListFirst(local.varName,".")][ListLast(local.varName,".")];
@@ -370,178 +336,209 @@ component name="flexmark" {
 	}
 
 	/**
-	 * @hint Create meta data for the document
+	 * @hint Parse headings into a struct of structs (document.data.content)
 	 *
+	 * Each entry has the following keys
 	 * 
+	 * id    dom ID
+	 * level toc level (id 1-4)
+	 * text  Heading text
+	 * toc   (boolean) include in toc
+	 *
 	 */
-	public void function addData(required struct document) {
+	public void function addContent(required struct document) localmode="true" {
 		
-		local.node = this.coldsoup.parse(arguments.document.html);
+		node = this.coldsoup.parse(arguments.document.html);
 
 		if (NOT structKeyExists(arguments.document,"data")) {
-			arguments.document.data = {};
+			arguments.document["data"] = {};
 		}
 
-		// data.meta was originally html meta tags but now generic variable thing
 		if (NOT structKeyExists(arguments.document.data,"meta")) {
-			arguments.document.data.meta = {};
+			arguments.document.data["meta"] = {};
 		}
 
 		// notoc is list of jsoup selectors to exclude from toc. Apply "notoc" class to nodes to do this
-		if (StructKeyExists(arguments.document.data.meta,"notoc")) {
-			if (NOT IsArray(arguments.document.data.meta.notoc)) {
-				local.notocSelectors = ListToArray(arguments.document.data.meta.notoc);
-			}
-			else {
-				local.notocSelectors = arguments.document.data.meta.notoc;
-			}
- 			
-			for (local.notocrule in local.notocSelectors) {
+		if (StructKeyExists(arguments.document.data,"notoc")) {
+			
+			for (notocrule in ListToArray( arguments.document.data.notoc ) ) {
 				
-				local.notocnodes = local.node.select(Trim(local.notocrule));
+				notocnodes = node.select(Trim(notocrule));
 				
-				for (local.notocNode in local.notocnodes) {
-					local.notocNode.addClass("notoc");
+				for (notocNode in notocnodes) {
+					notocNode.addClass("notoc");
 				}
 			}
 		}
 
-		var headers = local.node.select("h1,h2,h3,h4");
-		var idList = [];
-		for (var header in headers) {
+		headers = node.select("h1,h2,h3,h4");
+		content = [=];
+		
+		for (  header in headers) {
 			
 			// this gets overridden in flexmark if auto headers is on. See next
-			local.id = header.id();
+			id = header.id();
 			
 			// generate id from header text NB flexmark places the id and other attributes in to the <a> child tag
-			local.anchor = header.select("a");
-			if (IsDefined("local.anchor")) {
-				local.tag = local.anchor.first();
+			anchor = header.select("a");
+			if ( ArrayLen(anchor) ) {
+				tag = anchor.first();
 
-				local.id = local.tag.id();
+				id = tag.id();
 
-				local.href = local.anchor.attr("href");
-				if (IsDefined("local.href")) {
-					local.target = ListLast(local.href,"##");
-				}
-				
-				// flexmark always adds href to anchors. If it links to itself it's an anchor not a link.
-				if (local.id == local.target) {
-					local.tag.removeAttr("href");
-					// There is also a bug in Flexmark which removes ids if you're not using anchorlinks.
-					// Therefore the only way to get the ids is to use anchor links and assign the id to the parent element
-					if (variables.unwrapAnchors) {
-						this.coldsoup.copyAttributes(local.tag,header);
-						local.tag.unwrap();
-					}
+				href = anchor.attr("href");
+				if (IsDefined("href")) {
+					target = ListLast(href,"##");
 					
+					// flexmark always adds href to anchors. If it links to itself it's an anchor not a link.
+					if (id == target) {
+						tag.removeAttr("href");
+						// There is also a bug in Flexmark which removes ids if you're not using anchorlinks.
+						// Therefore the only way to get the ids is to use anchor links and assign the id to the parent element
+						if (variables.unwrapAnchors) {
+							this.coldsoup.copyAttributes(tag,header);
+							tag.unwrap();
+						}
+						
+					}
 				}
 			}
 
-			if (NOT (IsDefined("local.id") AND local.id neq "")) {
-				local.id = LCase(ReReplace(Replace(header.text()," ","-","all"), "[^\w\-]", "", "all"));
-				header.attr("id",local.id);
+			if (NOT (IsDefined("id") AND id neq "")) {
+				id = LCase(ReReplace(Replace(header.text()," ","-","all"), "[^\w\-]", "", "all"));
+				header.attr("id",id);
 			}
-			// add entry to data for all cases
-			local.noToc = header.hasClass("notoc");
-			arguments.document.data[local.id] = {"id"=local.id,text=header.text(),"level"=replace(header.tagName(), "h", ""),"toc"=NOT local.noToc};
 			
-			// add to toc list if not excluded
-			if (NOT local.noToc) {
-				ArrayAppend(idList,local.id);
-				header.addClass("hastoc");
-			}
-			else {
+			// add entry to data for all cases. Boolean notoc indicates 
+			// inclusion in toc
+			noToc = header.hasClass("notoc");
+			content["#id#"] = {"id"=id,"text"=header.text(),"level"=replace(header.tagName(), "h", ""),"toc"=!(noToc)};
+			
+			if (noToc) {
 				header.removeClass("notoc");
 			}
 		}
 
-		arguments.document.data["tocList"] = idList;
-		arguments.document.data.meta["toc"] = generateTocHTML(idlist,arguments.document.data);
+		arguments.document.data["content"] = content;
+		arguments.document.data.meta["toc"] = generateTocHTML(arguments.document.data);
 		
 		// Assign values from default headings to meta fields
-		for (var field in ['title','author','subject']) {
-			if (StructKeyExists(arguments.document.data,field) AND NOT StructKeyExists(arguments.document.data.meta,field)) {
-				if (IsStruct(arguments.document.data[field])) {
-					if (StructKeyExists(arguments.document.data[field], "text")) {
-						arguments.document.data.meta[field] = arguments.document.data[field].text;
-					}
-				}
-				else {
-					// really shoudn't be happening any more
-					arguments.document.data.meta[field] = arguments.document.meta[field];
-				}
+		for (field in ['title','author','subject']) {
+			if (StructKeyExists(arguments.document.data.content,field) AND NOT StructKeyExists(arguments.document.data.meta,field)) {
+				arguments.document.data.meta["#field#"] = arguments.document.data.content[field].text;
+				
 			}
 		}
 
 		// if not title set by id=title attribute then get first h1 tag
-		if (NOT structKeyExists(arguments.document.data.meta, "title")) {
+		if (! StructKeyExists(arguments.document.data.meta, "title")) {
 
-			 local.title = local.node.select("h1");
+			 title = node.select("h1");
 
-			 if (IsDefined("local.title") AND ArrayLen(local.title)) {
-			 	arguments.document.data.meta.title = local.title.first().text();
+			 if (IsDefined("title") AND ArrayLen(title)) {
+			 	arguments.document.data.meta.title = title.first().text();
 			 }
 		}
 
 		// auto cross references
-		local.links = local.node.select("a[href]");
+		links = node.select("a[href]");
 				
-		for (local.link in local.links) {
+		for (link in links) {
 			
-			local.id = ListLast(local.link.attr("href"),"##");
+			id = ListLast(link.attr("href"),"##");
 			
-			if (StructKeyExists(arguments.document.data,local.id)) {
-				local.text = local.link.text();
-				if (trim(local.text) eq "") {
-					local.link.html(arguments.document.data[local.id].text);
+			if (StructKeyExists(arguments.document.data,id)) {
+				text = link.text();
+				if (trim(text) eq "") {
+					link.html(arguments.document.data[id].text);
 				}
 			}
 			
 		}
-		
-		arguments.document.html = local.node.body().html();
 
+		removeUnusedIDs(document=arguments.document,jsoupNode=node);
+
+		arguments.document.html = node.body().html();
+
+	}
+
+	/**
+	 * @hint Remove ID tags that aren't used from headers
+	 *
+	 * Flexmark will add an ID to every heading. This function removes them if
+	 * they are not in the TOC or not referenced anywhere
+	 */
+	private string function removeUnusedIDs(required struct document, required any jsoupNode) localmode=true {
+		
+		// get list of all links used
+		targets = {};
+		links = arguments.jsoupNode.select("[href]");
+
+		if (IsDefined("links")) {
+			for (link in links) {
+				href = link.attr("href");
+				if (IsDefined("href")) {
+					if (Left(href,1) eq "##" ) {
+						targets["#ListFirst(href,"##")#"] = true;
+					}
+				}
+			}
+		}
+
+		idTags =  arguments.jsoupNode.select("[id]");
+		
+		for (tag in idTags) {
+			id = tag.attr("id");
+			if (IsDefined("id")) {
+				if (! ( targets.keyExists(id)  || ( ! arguments.document.data.content.keyExists(id) || ! arguments.document.data.content[id].toc ) ) ) {
+					tag.removeAttr("id");
+				}
+			}
+		}
 	}
 
 	/**
 	 * Generate HTML for a table of contents.
 	 * 
-	 * @idlist   List of IDs in order
-	 * @data     Document data (see addData(). Each heading needs an entry which is a struct with keys level,text, and id)
+	 * @data     Document data (see addContent(). Each heading needs an entry which is a struct with keys level,text, id, and toc)
 	 * @return   Formatted HTML
 	 */
-	private string function generateTocHTML(required array idlist, required struct data) {
-		
-		var line = false;
-		local.open = 0;
+	private string function generateTocHTML(required struct data) localmode=true {
 		
 		// TODO: class name parameterise
-		local.toc = "<div id=""toc"" class=""manual"">";
+		html = "<div id=""toc"" class=""toc toc_manual"">";
 
 		// default level for TOC headings
-		if (NOT StructKeyExists(arguments.data,"toclevel")) arguments.data.toclevel = 3;
+		if (NOT StructKeyExists(arguments.data,"toclevel")) arguments.data["toclevel"] = variables.docProperties.toclevel;
 
-		for (var id in arguments.idlist) {
-			if (StructKeyExists(arguments.data,id)) {
-				line = arguments.data[id];
-				if (line.level AND line.level lte arguments.data.toclevel) {
-					if (line.level eq 1) {
-						if (local.open) local.toc &= "  </div>";
-						//- bit of a legacy - styling used to be applied to the toc div which
-						//surrounded the whole thing. This had to be taken out to stop it
-						//creating a page break, so now we apply the toc styling to each individual div 
-						local.toc &= "  <div class=""toc tocsection"">";
-						local.open = 1;
-					}
-					local.toc &= "    <p class=""toc#line.level#""><a href=""###line.id#"">#line.text#</a></p>#chr(10)#";
-				}
-			}
+		if (! arguments.data.keyExists("content") ) {
+			throw(message="No content defined in data. Cannot generate toc");
 		}
-		if (local.open) {local.toc &= "  </div>";}
-		local.toc &= "</div>";
 
-		return local.toc;
+		currentlevel = 0;
+
+		for (id in arguments.data.content) {
+			heading = arguments.data.content[id];
+			toc = heading.toc ? : true; // toc can be set to false via notoc mechanism
+			level = heading.level ? : 20; // all headings should have a level 1-6. 
+			
+			if (toc && level lte arguments.data.toclevel) {
+				if (level neq currentlevel) {
+					if (currentlevel gt level ) { 
+						html &= repeatString("</div>" & newLine(), currentlevel - level);
+					}
+					html &= "  <div class=""tocsection tocsection#level#"">";
+					currentlevel = level;
+				}
+				html &= "    <p class=""toc#level#""><a href=""###heading.id#"">#heading.text#</a></p>" & newLine();
+			}
+			
+		}
+		html &= repeatString("</div>", currentlevel);
+
+		html &= "</div>";
+
+		return html;
 	}
 
 

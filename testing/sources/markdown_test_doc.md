@@ -1,7 +1,7 @@
 ---
 author: Tom Peer
 toclevel: 2
-notoc: #title,h3
+notoc: #title, .endmatter h2
 ---
 
 # Document title here {#title}
@@ -153,9 +153,9 @@ More text with a footnote[^footnote2]
 
 <div class="endmatter">
 
-### Title: _{$title}_
+## Title: _{$title}_
 
-### Author: _{$author}_
+## Author: _{$author}_
 
 </div>
 

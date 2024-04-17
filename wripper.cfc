@@ -120,7 +120,7 @@ component {
 				"footnotes"="p.MsoFootnoteText",
 				"endnotes"="p.MsoEndnoteText",
 			};
-			local.notes = {};
+			local.notes = {"footnotes"={},"endnotes"={}};
 			for (local.type in ["footnotes","endnotes"]) {
 
 				local.nodes = doc.select(local.types[local.type]);
