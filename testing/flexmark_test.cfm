@@ -28,6 +28,6 @@ html = flexmark.replaceVars(html, doc.data.meta);
 
 writeOutput(html);
 
-writeDump(var=doc.data,label="Meta Data");
+writeDump(var=doc,label="Meta Data");
 
 </cfscript>

@@ -53,6 +53,8 @@ component name="flexmark" {
 		catch (any e) {
 			variables.useJsoup = false;
 		}
+
+		variables.yaml = arguments.yaml;
 		
 		// doc properties allows us to use YAML to define 
 		// publishing properties like toclevel.
@@ -87,12 +89,12 @@ component name="flexmark" {
 		variables.parser = ParserClass.builder( options ).build();
 		variables.renderer = HtmlRendererClass.builder( options ).build();
 
+		//  deprecated
 		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
 		this.alphapattern  = this.patternObj.compile("(?m)^@[\w\[\]]+\.?\w*\s+.+?\s*$",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
 		this.varpattern    = this.patternObj.compile("(?m)\{\$\w*\_\w*\}",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
-		this.includepattern    = this.patternObj.compile("\<div\s+(href=\s*['\""](.*?)['\""]).*?\/\>",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
-
-		variables.yaml = arguments.yaml;
+		
+		
 		
 		return this;
 	
@@ -177,6 +179,9 @@ component name="flexmark" {
 			throw("use of markdown() function requires coldsoup. Use toHtml() instead.");
 		}
 
+		// Add processing options. Note document properties have a different mechanism see variables.docProperties
+		StructAppend(arguments.options, {"meta"=1}, false);
+
 		doc = {"data" = {"meta"={}}};
 
 		doc.text = arguments.text;
@@ -204,9 +209,10 @@ component name="flexmark" {
 		}
 
 		StructAppend(doc.data.meta, meta);
+		
+		addContent(document=doc, meta=arguments.options.meta);
+		parseFootnotes(doc);
 
-		addContent(doc);
-			
 		doc.html = replaceVars(doc.html, doc.data.meta);
 		
 		return doc;
@@ -249,35 +255,8 @@ component name="flexmark" {
 			}
 			
 		}
-		return variables.renderer.render(local.document); 
-	}
 
-	/**
-	 * @hint Read an index file and run markdown() on the result
-	 *
-	 * An index file can include other markdown files. Include them
-	 * using <div href='filename.md' />
-	 *
-	 * Note that the syntax is quite fussy.
-	 * 
-	 */
-	public struct function readIndex (required string filename) localmode=true {
-		
-		filepath = GetDirectoryFromPath(arguments.filename);
-		text = FileRead(arguments.filename);
-		
-		includes = this.includepattern.matcher(text);
-		
-		while (includes.find()) {
-			includeText = FileRead(filepath & "/" & includes.group(javacast("int",2)));
-			tag = Replace(includes.group(javacast("int",0)),includes.group(javacast("int",1)),"");
-			tag = Replace(tag,"/>",">");
-			tag = ReReplace(tag,"\s+\>",">");
-			tag &= newLine() & newLine() & includeText & newLine() & "</div>";
-			text = Replace(text,includes.group(javacast("int",0)), tag);
-		}
-		
-		return markdown(text);
+		return variables.renderer.render(local.document); 
 
 	}
 
@@ -336,6 +315,36 @@ component name="flexmark" {
 	}
 
 	/**
+	 * Parse attributes into a struct from a single tag string 
+	 * (e.g. [image id=xx]). Tag can be < or << or [ or [[ 
+	 * enclosed. Attributes can be single quoted, double quote 
+	 * or alpha numeric
+	 * 
+	 * @text The full tag string (start tag only, tag name ignored).
+	 */
+	public struct function parseTagAttributes(
+		required string text
+	) localmode=true {
+		temp = {};
+		stext = ReplaceList(arguments.text,"����","',',','");
+		stext = ListFirst(Trim(stext),"[]<>");
+		attrVals = ListRest(sText," ");
+
+		if (NOT IsDefined("variables.attrPattern")) {
+			patternObj = createObject( "java", "java.util.regex.Pattern");
+			myPattern = "(\w+)(\s*=\s*(""(.*?)""|'(.*?)'|([^'"">\s]+)))";
+			variables.attrPattern = patternObj.compile(myPattern);
+		}
+
+		tagObjs = variables.attrPattern.matcher(attrVals);
+
+		while (tagObjs.find()){
+		    temp[tagObjs.group(javacast("int",1))] = reReplace(tagObjs.group(javacast("int",3)), "^(""|')(.*?)(""|')$", "\2");
+		}
+
+		return temp;
+	}
+	/**
 	 * @hint Parse headings into a struct of structs (document.data.content)
 	 *
 	 * Each entry has the following keys
@@ -345,11 +354,13 @@ component name="flexmark" {
 	 * text  Heading text
 	 * toc   (boolean) include in toc
 	 *
+	 * @meta Use meta attribute on divs to convert content to a meta var.
 	 */
-	public void function addContent(required struct document) localmode="true" {
+	public void function addContent(required struct document, boolean meta=true) localmode="true" {
 		
-		node = this.coldsoup.parse(arguments.document.html);
-
+		if (! arguments.document.keyExists("node") ) {
+			arguments.document.node = this.coldsoup.parse(arguments.document.html);
+		}
 		if (NOT structKeyExists(arguments.document,"data")) {
 			arguments.document["data"] = {};
 		}
@@ -357,22 +368,11 @@ component name="flexmark" {
 		if (NOT structKeyExists(arguments.document.data,"meta")) {
 			arguments.document.data["meta"] = {};
 		}
-
-		// notoc is list of jsoup selectors to exclude from toc. Apply "notoc" class to nodes to do this
-		if (StructKeyExists(arguments.document.data,"notoc")) {
-			
-			for (notocrule in ListToArray( arguments.document.data.notoc ) ) {
-				
-				notocnodes = node.select(Trim(notocrule));
-				
-				for (notocNode in notocnodes) {
-					notocNode.addClass("notoc");
-				}
-			}
-		}
-
-		headers = node.select("h1,h2,h3,h4");
-		content = [=];
+		
+		// There is also a bug in Flexmark which removes ids if you're not using anchorlinks.
+		// Therefore the only way to get the ids is to use anchor links and assign the id to the parent element
+		
+		headers = arguments.document.node.select("h1,h2,h3,h4");
 		
 		for (  header in headers) {
 			
@@ -393,32 +393,59 @@ component name="flexmark" {
 					// flexmark always adds href to anchors. If it links to itself it's an anchor not a link.
 					if (id == target) {
 						tag.removeAttr("href");
-						// There is also a bug in Flexmark which removes ids if you're not using anchorlinks.
-						// Therefore the only way to get the ids is to use anchor links and assign the id to the parent element
 						if (variables.unwrapAnchors) {
 							this.coldsoup.copyAttributes(tag,header);
 							tag.unwrap();
-						}
-						
+						}	
 					}
 				}
 			}
-
-			if (NOT (IsDefined("id") AND id neq "")) {
-				id = LCase(ReReplace(Replace(header.text()," ","-","all"), "[^\w\-]", "", "all"));
-				header.attr("id",id);
+		}
+		
+		// any divs with meta=true are meta data vars
+		if (arguments.meta) {
+			metadivs = arguments.document.node.select("[meta]");
+			for (metadiv in metadivs) {
+				id = metadiv.attr("id"); 
+				if (! isDefined("id")) {
+					throw("Meta attribute defined on div without an ID.");
+				}
+				arguments.document.data.meta["#id#"] = metadiv.html();
+				metadiv.remove();
 			}
+		}
+
+		// notoc is list of jsoup selectors to exclude from toc. Apply "notoc" class to nodes to do this
+		if (StructKeyExists(arguments.document.data,"notoc")) {
+			
+			for (notocrule in ListToArray( arguments.document.data.notoc ) ) {
+				
+				notocnodes = arguments.document.node.select(Trim(notocrule));
+				
+				for (notocNode in notocnodes) {
+					notocNode.addClass("notoc");
+				}
+			}
+		}
+
+		content = [=];
+		headers = arguments.document.node.select("h1,h2,h3,h4");
+
+		for (  header in headers) {
+			
+			id = header.id();
 			
 			// add entry to data for all cases. Boolean notoc indicates 
 			// inclusion in toc
 			noToc = header.hasClass("notoc");
-			content["#id#"] = {"id"=id,"text"=header.text(),"level"=replace(header.tagName(), "h", ""),"toc"=!(noToc)};
+			level = replace(header.tagName(), "h", "");
+			content["#id#"] = {"id"=id,"text"=header.text(),"level"=level,"toc"= (!noToc) && level <= arguments.document.data.toclevel};
 			
 			if (noToc) {
 				header.removeClass("notoc");
 			}
 		}
-
+		
 		arguments.document.data["content"] = content;
 		arguments.document.data.meta["toc"] = generateTocHTML(arguments.document.data);
 		
@@ -433,7 +460,7 @@ component name="flexmark" {
 		// if not title set by id=title attribute then get first h1 tag
 		if (! StructKeyExists(arguments.document.data.meta, "title")) {
 
-			 title = node.select("h1");
+			 title = arguments.document.node.select("h1");
 
 			 if (IsDefined("title") AND ArrayLen(title)) {
 			 	arguments.document.data.meta.title = title.first().text();
@@ -441,26 +468,39 @@ component name="flexmark" {
 		}
 
 		// auto cross references
-		links = node.select("a[href]");
+		links = arguments.document.node.select("a[href]");
 				
 		for (link in links) {
 			
 			id = ListLast(link.attr("href"),"##");
 			
-			if (StructKeyExists(arguments.document.data,id)) {
+			if (StructKeyExists(arguments.document.data.content,id)) {
 				text = link.text();
 				if (trim(text) eq "") {
-					link.html(arguments.document.data[id].text);
+					link.html(arguments.document.data.content[id].text);
 				}
 			}
 			
 		}
 
-		removeUnusedIDs(document=arguments.document,jsoupNode=node);
+		removeUnusedIDs(document=arguments.document,jsoupNode=arguments.document.node);
+		fixTableCaptions(jsoupNode=arguments.document.node);
 
-		arguments.document.html = node.body().html();
+		arguments.document.html = arguments.document.node.body().html();
 
 	}
+
+	/**
+	 * Convert caption attibutes to tags
+	 */
+	private void function fixTableCaptions(required any jsoupNode) {
+		local.tables = arguments.jsoupNode.select( "table[caption]" );
+		for (local.table in local.tables) {
+			local.table.prepend(this.coldsoup.createNode(tagName="caption",text=local.table.attr("caption")));
+			local.table.removeAttr("caption");
+		}
+	}
+		
 
 	/**
 	 * @hint Remove ID tags that aren't used from headers
@@ -489,11 +529,15 @@ component name="flexmark" {
 		
 		for (tag in idTags) {
 			id = tag.attr("id");
+			
+			if (left(tag.tagName(),1) neq "h") continue;
+
 			if (IsDefined("id")) {
-				if (! ( targets.keyExists(id)  || ( ! arguments.document.data.content.keyExists(id) || ! arguments.document.data.content[id].toc ) ) ) {
+				if (! ( targets.keyExists(id)  || ( arguments.document.data.content.keyExists(id) && arguments.document.data.content[id].toc ) ) ) {
 					tag.removeAttr("id");
 				}
 			}
+
 		}
 	}
 
@@ -515,31 +559,75 @@ component name="flexmark" {
 			throw(message="No content defined in data. Cannot generate toc");
 		}
 
-		currentlevel = 0;
+		insection = false;
 
 		for (id in arguments.data.content) {
 			heading = arguments.data.content[id];
 			toc = heading.toc ? : true; // toc can be set to false via notoc mechanism
 			level = heading.level ? : 20; // all headings should have a level 1-6. 
-			
+			// MUSTDO: this doesn't work if toclevel=1. 
 			if (toc && level lte arguments.data.toclevel) {
-				if (level neq currentlevel) {
-					if (currentlevel gt level ) { 
-						html &= repeatString("</div>" & newLine(), currentlevel - level);
+				if (arguments.data.toclevel gt 1 && level eq 1) {
+					if (insection) { 
+						html &= "</div>";
 					}
-					html &= "  <div class=""tocsection tocsection#level#"">";
-					currentlevel = level;
+					html &= "  <div class=""tocsection"">";
+					insection = true;
 				}
 				html &= "    <p class=""toc#level#""><a href=""###heading.id#"">#heading.text#</a></p>" & newLine();
 			}
 			
 		}
-		html &= repeatString("</div>", currentlevel);
+		// close tocsection tag
+		if (arguments.data.toclevel gt 1) {
+			html &= "</div>";
+		}
 
 		html &= "</div>";
 
 		return html;
+
 	}
 
+	// Flexmark will place footnotes at the end of the HTML. 
+	// We want to use them in different ways according to how we are diplsaying
+	// the content. Here we put them backinto the HTML as <span class='footnote'></span> elements.
+	// For Prince conversion, these are used as is. For Kindle/other html, it's easy to just redo the footnote html
+	// 
+	private void function parseFootnotes(required any document) {
+		if (! arguments.document.keyExists("node") ) {
+			arguments.document.node = this.coldsoup.parse(arguments.document.html);
+		}
 
+		local.docs = arguments.document.node.select(".footnotes");
+		if (! local.docs.len()) {
+			return;
+		}
+
+		// get rid of the extraneous <sup> tags
+		local.markers = arguments.document.node.select("sup[id]");
+		for (local.marker in local.markers) {
+			local.marker.unwrap();
+		}
+
+		// find all the footnote markers
+		local.footnotes = arguments.document.node.select("a.footnote-ref");
+
+		for (local.marker in local.footnotes) {
+			/* find footnote with format 
+			<li id="fn-2"> <p>Look it up if you don’t already know it. And then try not to do it.</p>
+			*/
+			local.href = local.marker.attr("href");
+			local.num = ListLast(local.href,"-");
+			local.note = arguments.document.node.select(local.href & " p").first().html();
+			local.marker.html("<span class='footnote'>#local.note#</span>").unwrap();
+		}
+
+		// remove the footnotes section
+		arguments.document.node.select(".footnotes").first().remove();
+		
+		arguments.document.html = arguments.document.node.body().html();
+	}
+
+	
 }

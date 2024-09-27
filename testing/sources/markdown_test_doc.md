@@ -34,12 +34,22 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 `**<b>list 2</b>**`
 
-# Lists
+# Lists { #lists}
 
 ## Numeric list
 
 1. Numeric list
 2. Numeric
+
+Cross reference to [](#lists)
+
+<div meta="true" id="meta_test">
+
+This just gets turned into a meta var
+
+But should have html
+
+</div>
 
 Some text with a footnote[^footnote]
 
