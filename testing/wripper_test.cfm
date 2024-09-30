@@ -47,6 +47,7 @@ catch (any e) {
 }
 
 wripperObj.debugtype = "text";
+
 try {  
 	mytest = FileRead(testpath & fileIn,"utf-8");
 }
