@@ -4,10 +4,6 @@
 
 Sample Flexmark markdown parsing
 
-## Synopsis
-
-This uses the more complex "markdown" method which requires Jsoup and returns other information
-
 ## Usage
 
 Configure and run Preview in browser
