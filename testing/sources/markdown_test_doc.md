@@ -1,10 +1,11 @@
 ---
+title: Document title
 author: Tom Peer
 toclevel: 2
-notoc: #title,h3
+notoc: #title, .endmatter h2
 ---
 
-# Document title here {#title}
+# Document title here
 
 # Basics
 
@@ -34,12 +35,22 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 `**<b>list 2</b>**`
 
-# Lists
+# Lists { #lists}
 
 ## Numeric list
 
 1. Numeric list
 2. Numeric
+
+Cross reference to [](#lists)
+
+<div meta="true" id="meta_test">
+
+This just gets turned into a meta var
+
+But should have html
+
+</div>
 
 Some text with a footnote[^footnote]
 
@@ -115,8 +126,8 @@ More text with a footnote[^footnote2]
 | table  | table 1    | table 2 |
 |:------:|------------|--------:|
 | cell1  | cell 2            ||
-|| cell 4  | cell 5
-{ .info}
+| cell 4  ||cell 5 |
+{ .table}
 
 # Table of contents {#contents .notoc}
 
@@ -153,9 +164,9 @@ More text with a footnote[^footnote2]
 
 <div class="endmatter">
 
-### Title: _{$title}_
+## Title: _{$title}_
 
-### Author: _{$author}_
+## Author: _{$author}_
 
 </div>
 

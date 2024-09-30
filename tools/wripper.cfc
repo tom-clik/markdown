@@ -54,8 +54,8 @@ component {
 			this.jsoup = new coldSoup.coldSoup();
 		}
 		catch (any e) {
-			throw(message="Unable to create Jsoup object",detail="Wripper uses Jsoup to convert word html to markdown. Please ensure you have Jsoup included in your java class path
-				and the coldSoup component in your component path.<br><br>#e.message#<br><br>#e.detail#");
+			throw(message="Unable to create Jsoup object:" & e.message,detail="Wripper uses Jsoup to convert word html to markdown. Please ensure you have Jsoup included in your java class path
+				and the coldSoup component in your component path.<br><br>##<br><br>#e.detail#");
 		}
 		
 		// line endings
@@ -69,11 +69,8 @@ component {
 			"MsoIntenseQuote" = "quote"
 		};
 
-		// debug text, trace, request (request.log) or file. 
-		this.debugtype = "none";
-		this.debugFile = "undefined";
-
 		return this;
+
 	}
 
 	/**
@@ -120,7 +117,7 @@ component {
 				"footnotes"="p.MsoFootnoteText",
 				"endnotes"="p.MsoEndnoteText",
 			};
-			local.notes = {};
+			local.notes = {"footnotes"={},"endnotes"={}};
 			for (local.type in ["footnotes","endnotes"]) {
 
 				local.nodes = doc.select(local.types[local.type]);
@@ -170,16 +167,20 @@ component {
 
 
 		// anchors 
-		// 1. select orphans with no references (lots of them usually)
-		// 2. Get parent tag and apply id to that
+		// 1. Remove anchors with no references (lots of them usually)
+		// 2. Apply ID of others to parent tag
+
 
 		local.nodes = local.doc.select("a[name]");
 		for (local.node in local.nodes) {
+			
 			local.name = local.node.attr("name");
 			if (structKeyExists(local.crossRefs,local.name)) {
 				local.parent = local.node.parent();
-				debug("Anchor outer html<br><br>" & parent.outerHtml());
 				local.parent.attr("id",local.name);
+
+				// debug("Anchor [#local.name#] outer html<br><br>" & HTMLEditFormat( parent.outerHtml()) );
+				
 			}
 			
 			local.node.unwrap();
@@ -187,30 +188,28 @@ component {
 
 
 		// headings
-		
-		if (arguments.demote OR arguments.stripnums) {
-			local.nodes = doc.select("h1,h2,h3,h4,h5,h6");
-			for (local.node in local.nodes) {
-				addAttributes(local.node,"id");
-				local.level = Replace(local.node.tagName(),"h","");
-				local.level = local.level + arguments.demote;
-				local.class = "";
-				if (local.level gt 6) {
-					local.tag = "p";
-					local.class = " class='h#local.level#'";
-				}
-				else {
-					local.tag = "h#local.level#";
-				}
-				local.text =  Trim(local.node.html());
-				if (arguments.stripnums) {
-					local.text = ReReplace(local.text,"[\d\.]+\s","");
-				}
-				local.node.after("<#local.tag##local.class#>" & local.text & "</#local.tag#>");
-				local.node.remove();
-			}
-		}
+		local.nodes = doc.select("h1,h2,h3,h4,h5,h6");
 
+		for (local.node in local.nodes) {
+			addAttributes(local.node,"id");
+			local.level = Replace(local.node.tagName(),"h","");
+			local.level = local.level + arguments.demote;
+			local.class = "";
+			if (local.level gt 6) {
+				local.tag = "p";
+				local.class = " class='h#local.level#'";
+			}
+			else {
+				local.tag = "h#local.level#";
+			}
+			local.text =  Trim(local.node.html());
+			if (arguments.stripnums) {
+				local.text = ReReplace(local.text,"[\d\.]+\s","");
+			}
+			local.node.after("<#local.tag##local.class#>" & local.text & "</#local.tag#>");
+			local.node.remove();
+		}
+		
 		// images 
 		local.nodes = doc.select("img");
 		for (local.node in local.nodes) {
@@ -263,7 +262,11 @@ component {
 					local.spans.first().remove();
 				}
 
-				local.node.after("<#local.listClass#l><#local.listClass#li>#local.node.html()#</#local.listClass#li></#local.listClass#l>").remove();
+				local.text = local.node.html();
+				debug("List item: " & htmlEditFormat(local.text));
+				local.text = REReplaceNoCase(Trim(local.text), "^[A-Za-z0-9]+\.", "");
+
+				local.node.after("<#local.listClass#l><#local.listClass#li>#local.text#</#local.listClass#li></#local.listClass#l>").remove();
 			}
 		}
 
@@ -356,12 +359,14 @@ component {
 				myData &= myTag.text();
 
 			}
-			else {
+			else if ( IsInstanceOf(myTag, "org.jsoup.nodes.Element") ) {
 				
-				if (isBlock(myTag.tagName())) {
+				tagName = myTag.tagName();
+
+				if (isBlock(tagName)) {
 					myData &= this.cr & this.cr;
 				} 
-				else if (isLine(myTag.tagName())) {
+				else if (isLine(tagName)) {
 					myData &= this.cr;
 				}
 				
@@ -374,7 +379,7 @@ component {
 					}
 				}
 
-				myData &= openTag(myTag.tagName(),local.class);
+				myData &= openTag(tagName,local.class);
 
 				try {
 					if (ArrayLen(myTag.childNodes())) {
@@ -715,7 +720,7 @@ component {
 	 * 
 	 */
 	
-	public string function lineBreaker(required string text) {
+	public string function lineBreaker(required string text) localmode=true {
 
 		patternObj   = createObject( "java", "java.util.regex.Pattern" );
 		parapattern  = patternObj.compile("(\r\n){2,}",patternObj.MULTILINE);
@@ -724,7 +729,7 @@ component {
 
 		arguments.text = parapattern.matcher(arguments.text).replaceAll("<p>");
 		arguments.text = brpattern.matcher(arguments.text).replaceAll(" ");
-		arguments.text = fixpattern.matcher(arguments.text).replaceAll(chr(13) & chr(10) & chr(13) & chr(10));
+		arguments.text = fixpattern.matcher(arguments.text).replaceAll(this.cr & this.cr);
 
 		return arguments.text
 			
@@ -736,27 +741,9 @@ component {
 	 * @debugText  Test to wrtie
 	 */
 	private void function debug(debugText) {
-		switch (this.debugtype) {
-			case "text":
-				WriteOutput(arguments.debugText);
-				break;
-			case "request":
-				param name="request.log" default="";
-				request.log &= arguments.debugText;
-				break;
-			case "trace":
-				Trace(text=arguments.debugText);
-				break;
-			case "file":
-				try {
-					fileAppend(this.debugFile, arguments.debugText);
-				}
-				catch(any e) {
-					throw(message="unable to write to debug log;e.message",detail= e.detail);
-				}
-				break;
-
-		}
+		if (StructKeyExists(this,"loggerObj")) {
+  			this.loggerObj.log(text = debugText, type="I");
+  		}
 	}
 
 }

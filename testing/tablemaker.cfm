@@ -17,11 +17,10 @@ Tom Peer tom@clik.com
 <cfscript>
 
 fileIn  = ExpandPath("sources/tableTest.txt");
-fileOut = Replace(ListLast(fileIn,"\/"),".txt","_out.md");
-dirOut  = ExpandPath("_out/");
+fileOut = ExpandPath("_out/") & Replace(ListLast(fileIn,"\/"),".txt","_out.md");
 
 try {
-	wripperObj = new markdown.wripper();
+	wripperObj = new markdown.tools.wripper();
 }
 
 catch (any e) {
@@ -36,7 +35,7 @@ catch (any e) {
 
 wripperObj.debugtype = "text";
 try {  
-	mytest = FileRead(fileIn,"utf-8");
+	txt = FileRead(fileIn,"utf-8");
 }
 catch (any e) {
 	throw(
@@ -46,10 +45,11 @@ catch (any e) {
 	);
 }
 
-mytest = wripperObj.parseTextTable(mytest);
+md = wripperObj.parseTextTable(txt);
 
-FileWrite(dirOut & fileOut, mytest, "utf-8");
+FileWrite( fileOut, md, "utf-8");
 
-WriteOutput("File converted to " & dirOut & fileOut);
+WriteOutput("File converted to " & fileOut);
+WriteOutput("<pre>#md#</pre>");
 
 </cfscript>

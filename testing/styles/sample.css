@@ -46,7 +46,7 @@ table {
 	border-width: var(--table-border-width);
 	border-style: var(--table-border-style);
 	border-color: var(--table-border-color);
-	border-collapse: separate;
+	border-collapse: collapse;
 	width: auto;/* will override leagcy table width= settings */
 }
 

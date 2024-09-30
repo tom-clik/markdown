@@ -20,7 +20,7 @@ component extends="testbox.system.BaseSpec"{
 			local.wripper = new markdown.wripper();
 		}
 		catch (Any e) {
-				$assert.fail( "Failed to create wripper component");
+			$assert.fail( "Failed to create wripper component");
 		}
 	}
 	/**
@@ -34,7 +34,7 @@ component extends="testbox.system.BaseSpec"{
 
 		}
 		catch (Any e) {
-				$assert.fail( "Failed to parse document #e.message#");
+			$assert.fail( "Failed to parse document #e.message#");
 		}
 	}
 }
