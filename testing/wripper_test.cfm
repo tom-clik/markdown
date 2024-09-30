@@ -2,13 +2,12 @@
 
 # Wipper test
 
-Test Wripper Word HTML to markdown markdown
+Test Wripper Word HTML to markdown conversion
 
 ## Usage
 
 1. Configure hard wired paths
 2. Preview in browser.
-
 
 --->
 
@@ -34,7 +33,7 @@ if (! DirectoryExists(dirOut)) {
 }
 
 try {
-	wripperObj = new markdown.wripper();
+	wripperObj = new markdown.tools.wripper();
 }
 catch (any e) {
 	local.extendedinfo = {"tagcontext"=e.tagcontext};
@@ -46,7 +45,13 @@ catch (any e) {
 	);
 }
 
-wripperObj.debugtype = "text";
+try {
+	wripperObj.loggerObj = new logger.logger(debug=true);
+	showLog = 1;
+}
+catch (any e) {
+	showLog = 0;
+}
 
 try {  
 	mytest = FileRead(testpath & fileIn,"utf-8");
@@ -75,5 +80,11 @@ catch (any e) {
 }
 
 writeOutput("File written to #filePathOut#");
+WriteOutput("<pre>#doc#</pre>");
+
+if (showLog) {
+	wripperObj.loggerObj.viewLog();
+}
+
 
 </cfscript>

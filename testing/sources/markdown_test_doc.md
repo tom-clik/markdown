@@ -1,10 +1,11 @@
 ---
+title: Document title
 author: Tom Peer
 toclevel: 2
 notoc: #title, .endmatter h2
 ---
 
-# Document title here {#title}
+# Document title here
 
 # Basics
 
@@ -125,8 +126,8 @@ More text with a footnote[^footnote2]
 | table  | table 1    | table 2 |
 |:------:|------------|--------:|
 | cell1  | cell 2            ||
-|| cell 4  | cell 5
-{ .info}
+| cell 4  ||cell 5 |
+{ .table}
 
 # Table of contents {#contents .notoc}
 

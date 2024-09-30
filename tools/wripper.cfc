@@ -47,7 +47,7 @@
  */
 component {
 
-	public wripper function init(string debugtype="none",string debugFile) {
+	public wripper function init() {
 		
 		// Jsoup helper class
 		try {
@@ -69,11 +69,8 @@ component {
 			"MsoIntenseQuote" = "quote"
 		};
 
-		// debug text, trace, request (request.log array) or file. 
-		this.debugtype = arguments.debugtype;
-		this.debugFile = arguments.debugFile;
-
 		return this;
+
 	}
 
 	/**
@@ -723,7 +720,7 @@ component {
 	 * 
 	 */
 	
-	public string function lineBreaker(required string text) {
+	public string function lineBreaker(required string text) localmode=true {
 
 		patternObj   = createObject( "java", "java.util.regex.Pattern" );
 		parapattern  = patternObj.compile("(\r\n){2,}",patternObj.MULTILINE);
@@ -744,27 +741,9 @@ component {
 	 * @debugText  Test to wrtie
 	 */
 	private void function debug(debugText) {
-		switch (this.debugtype) {
-			case "text":
-				WriteOutput(arguments.debugText);
-				break;
-			case "request":
-				param name="request.log" default=[];
-				request.log.append( arguments.debugText );
-				break;
-			case "trace":
-				Trace(text=arguments.debugText);
-				break;
-			case "file":
-				try {
-					fileAppend(this.debugFile, arguments.debugText);
-				}
-				catch(any e) {
-					throw(message="unable to write to debug log:" & e.message,detail= e.detail);
-				}
-				break;
-
-		}
+		if (StructKeyExists(this,"loggerObj")) {
+  			this.loggerObj.log(text = debugText, type="I");
+  		}
 	}
 
 }
