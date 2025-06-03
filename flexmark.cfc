@@ -20,11 +20,9 @@ We therefore have a workaround, which is an option unwrapAnchors, which will loo
 
 ## Usage
 
-Instantiate with the plugins and options you require set by the arguments. If you want to use the advanced functionality, specify a path to the Jsoup Jar as well.
+Instantiate with the plugins and options you require set by the arguments. If you want to use the advanced functionality, specify a path to the Jsoup Jar as well (jsoupjar).
 
-
-
-
+Call one of the conversion methods, `toHtml` or `Markdown`. The latter requires the use of Jsoup (via the herlper component ColdSoup).
 
 ## History
 	
