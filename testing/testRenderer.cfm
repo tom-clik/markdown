@@ -13,9 +13,7 @@ Define the tests to run, ensure there is a markdown source and expected result f
 
 */
 
-tests = ['definition','attributes','footnote','abbreviation','admonition','autolink'];
-
-tests = ['admonition'];
+tests = ['definition','attributes','footnote','abbreviation','admonition','autolink','admonition'];
 
 // we run all html through jsoup parse so we get a better comparison
 
