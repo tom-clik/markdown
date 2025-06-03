@@ -13,7 +13,7 @@ Define the tests to run, ensure there is a markdown source and expected result f
 
 */
 
-tests = ['definition','attributes','footnote','abbreviation','admonition','autolink'];
+tests = ['definition','attributes','footnote','abbreviation','admonition','autolink','admonition'];
 
 // we run all html through jsoup parse so we get a better comparison
 
@@ -26,14 +26,13 @@ for (test in tests) {
 	mytext = FileRead(sources & "#test#.md","utf-8");
 	myresult = jsoup.parse(trim(FileRead(sources & "/#test#.html","utf-8"))).body().html();
 	start = getTickCount();
-
 	
-	raw = flexmark.markdown(mytext,{}).html;
-	outhtml = jsoup.parse(trim(raw)).body().html();
+	outhtml = flexmark.toHtml(mytext);
 	
 	if (myresult != outhtml) {
 		writeOutput("<p>#test# Failed</p>");
 		writeOutput("<pre>#htmlEditFormat(outhtml)#</pre>");
+		writeOutput("<p>Should be</p>");
 		writeOutput("<pre>#htmlEditFormat(myresult)#</pre>");
 	}
 	else {

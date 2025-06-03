@@ -18,13 +18,20 @@ If you don't use the Anchor links plug in, it will remove any ids specified with
 
 We therefore have a workaround, which is an option unwrapAnchors, which will look for empty `<a>` tags where the href is the same as the id tag, copy the attributes to the parent and unwrap the a tag. This is fine as there is no real need to use anchor tags any more, a link to any ID is possible.
 
+## Usage
+
+Instantiate with the plugins and options you require set by the arguments. If you want to use the advanced functionality, specify a path to the Jsoup Jar as well (jsoupjar).
+
+Call one of the conversion methods, `toHtml` or `Markdown`. The latter requires the use of Jsoup (via the herlper component ColdSoup).
+
 ## History
 	
 */
 
 component name="flexmark" {
 
-	public function init(boolean tables=true,
+	public function init(
+			boolean tables=true,
 			boolean abbreviation=true,
 			boolean admonition=true,
 			boolean anchorlink=true,
@@ -41,13 +48,14 @@ component name="flexmark" {
 			boolean macros=true,
 			boolean typographic = false,
 			boolean tasklist = true,
-			boolean yaml = true
+			boolean yaml = true,
+			string  jsoupjar
 			) {
 	
 		this.cr = newLine();
 		
 		try {
-			this.coldsoup      = new coldsoup.coldsoup();
+			this.coldsoup      = new coldsoup.coldsoup(arguments.jsoupjar);
 			variables.useJsoup = true;
 		}
 		catch (any e) {
@@ -89,12 +97,15 @@ component name="flexmark" {
 		variables.parser = ParserClass.builder( options ).build();
 		variables.renderer = HtmlRendererClass.builder( options ).build();
 
-		//  deprecated
+		
 		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
+		
+		this.mustachepattern    = this.patternObj.compile("(\{{2,3})(\w+)(\}{2,3})",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
+		this.reversemustachepattern    = this.patternObj.compile("(\[{2,3})(\w+)(\]{2,3})",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
+		
+		//  deprecated
 		this.alphapattern  = this.patternObj.compile("(?m)^@[\w\[\]]+\.?\w*\s+.+?\s*$",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
 		this.varpattern    = this.patternObj.compile("(?m)\{\$\w*\_\w*\}",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
-		
-		
 		
 		return this;
 	
@@ -127,7 +138,6 @@ component name="flexmark" {
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.definition.DefinitionExtension").create());
 		}
 		if (optionsSet.keyExists("emoji") && optionsSet["emoji"]) {
-			import com.vladsch.flexmark.ext.emoji.EmojiExtension;
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.emoji.EmojiExtension").create());
 		}
 		if (optionsSet.keyExists("escapedcharacter") && optionsSet["escapedcharacter"]) {
@@ -225,7 +235,10 @@ component name="flexmark" {
 	 * @text          Markdown text to convert
 	 * @data          Struct to update with YAML data
 	 */
-	public string function toHtml(required string text, struct data={}) {
+	public string function toHtml(required string text, struct data={}) localmode=true {
+		
+		arguments.text  = replaceMustacheVars(arguments.text);
+
 		local.document = variables.parser.parse(arguments.text);
 		if (variables.yaml) {
 			local.yamlVisitor = createObject( "java", "com.vladsch.flexmark.ext.yaml.front.matter.AbstractYamlFrontMatterVisitor");
@@ -244,7 +257,7 @@ component name="flexmark" {
 						}
 					}
 					catch (any e) {
-						local.extendedinfo = {"tagcontext"=e.tagcontext,"keyData"=local.keyData};
+						local.extendedinfo = {"error"=e,"keyData"=local.keyData};
 						throw(
 							extendedinfo = SerializeJSON(local.extendedinfo),
 							message      = "Unable to parse Yaml:" & e.message, 
@@ -256,8 +269,38 @@ component name="flexmark" {
 			
 		}
 
-		return variables.renderer.render(local.document); 
+		arguments.text = variables.renderer.render(local.document);
+		arguments.text  = replaceMustacheVars(arguments.text,true);
 
+		return arguments.text; 
+
+	}
+	/**
+	 * Replace {{mustachevars}} with temporary place holders (and replace back)
+	 */
+	private string function replaceMustacheVars(required string text, boolean undo=false)  localmode=true {
+
+		if (arguments.undo) {
+			tagObjs = this.reversemustachepattern.matcher(arguments.text);
+			matchlist = "[,]";
+			replacelist = "{,}";
+		}
+		else {
+			tagObjs = this.mustachepattern.matcher(arguments.text);
+			matchlist = "{,}";
+			replacelist = "[,]";
+		}
+
+		
+		fixEntities = [];
+		while (tagObjs.find()){
+		    arrayAppend(fixEntities, local.tagObjs.group());
+		}
+		for (entity in fixEntities) {
+			entity_r = replaceList(entity,matchlist,replacelist);
+			arguments.text = replace(arguments.text, entity, entity_r);
+		}
+		return arguments.text;
 	}
 
 	/**

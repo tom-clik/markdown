@@ -15,12 +15,13 @@ Tom Peer tom@clik.com
 --->
 
 <cfscript>
-
+// Path to JSOUP jar
+jsoupJarPath = server.system.environment.javalib & "\jsoup-1.20.1.jar";
 fileIn  = ExpandPath("sources/tableTest.txt");
 fileOut = ExpandPath("_out/") & Replace(ListLast(fileIn,"\/"),".txt","_out.md");
 
 try {
-	wripperObj = new markdown.tools.wripper();
+	wripperObj = new markdown.tools.wripper(jsoupJarPath);
 }
 
 catch (any e) {
