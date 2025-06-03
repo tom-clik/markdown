@@ -6,18 +6,25 @@ Test Wripper Word HTML to markdown conversion
 
 ## Usage
 
+1. Install [ColdSoup](https://github.com/tom-clik/coldsoup) and ensure you have a modern version of [JSOUP](https://jsoup.org/download) ready to use
 1. Configure hard wired paths
 2. Preview in browser.
 
 --->
 
 <cfscript>
-testPath  = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
+/********************************************
+ * Config 
+ * ******************************************/
+// Path to JSOUP jar
+jsoupJarPath = server.system.environment.javalib & "\jsoup-1.20.1.jar";
+// Input file 
+fileIn  = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\wripper_test_doc2.htm";
+// output file
+fileOut   = ExpandPath("_out/") & Replace(ListLast(fileIn,"\/"),ListLast(fileIn,"."),"md");
+/*********************************************/
 
-fileIn    = "wripper_test_doc2.htm";
-
-fileOut   = Replace(ListLast(fileIn,"\/"),ListLast(fileIn,"."),"md");
-dirOut    = ExpandPath("_out/");
+dirOut    = getDirectoryFromPath(fileOut);
 
 if (! DirectoryExists(dirOut)) {
 	try {
@@ -25,7 +32,7 @@ if (! DirectoryExists(dirOut)) {
 	}
 	catch (any e) {
 		throw(
-			message      = "Unable to create outpur directory data #dirOut#:" & e.message, 
+			message      = "Unable to create output directory data #dirOut#:" & e.message, 
 			detail       = e.detail,
 			errorcode    = "wripper_test.1"		
 		);
@@ -33,7 +40,7 @@ if (! DirectoryExists(dirOut)) {
 }
 
 try {
-	wripperObj = new markdown.tools.wripper();
+	wripperObj = new markdown.tools.wripper(jsoupJarPath);
 }
 catch (any e) {
 	local.extendedinfo = {"tagcontext"=e.tagcontext};
@@ -54,11 +61,11 @@ catch (any e) {
 }
 
 try {  
-	mytest = FileRead(testpath & fileIn,"utf-8");
+	mytest = FileRead(fileIn,"utf-8");
 }
 catch (any e) {
 	throw(
-		message      = "Unable to read input file #testpath#:" & e.message, 
+		message      = "Unable to read input file #fileIn#:" & e.message, 
 		detail       = e.detail,
 		errorcode    = "wripper_test.3"		
 	);
@@ -66,20 +73,18 @@ catch (any e) {
 
 doc = wripperObj.wrip(mytest);
 
-filePathOut = dirOut & fileOut;
-
 try {
-	FileWrite(dirOut & fileOut, doc, "utf-8");
+	FileWrite(fileOut, doc, "utf-8");
 }
 catch (any e) {
 	throw(
-		message      = "Unable to save file to #filePathOut#:" & e.message, 
+		message      = "Unable to save file to #fileOut#:" & e.message, 
 		detail       = e.detail,
 		errorcode    = "wripper_test.4"		
 	);
 }
 
-writeOutput("File written to #filePathOut#");
+writeOutput("File written to #fileOut#");
 WriteOutput("<pre>#doc#</pre>");
 
 if (showLog) {

@@ -1,61 +1,54 @@
 /**
  * Wripper - Convert Word filtered "HTML" into Markdown.
  *
- * =====================================================
- * Usage
- * =====================================================
+ * ## Usage
  * 
  * 1. Save WORD doc as Web page (filtered)
  * 2. Instantiate component as singleton
  * 3. Call wrip() method
  * 
- * =====================================================
- * Synopsis
- * =====================================================
+ * ## Synopsis
  * 
- * -----------------------------------------------------
- * 1. Strip rubbish
- * -----------------------------------------------------
+ * ### 1. Strip rubbish
+ * 
  * We start by stripping rubbish
  * 
- * 1.1	Empty spans
- *	 We have to convert &nbsp; to normal spaces for these. They are never in the right place.
+ * #### 1.1	Empty spans
+ *	
+ *	We have to convert `&nbsp;` to normal spaces for these. They are never in the right place.
  * 
- * 1.2	Empty paras
+ * #### 1.2	Empty paras
  * 
- * -----------------------------------------------------
- * 2. Remove block tags
- * -----------------------------------------------------
+ * ### 2. Remove block tags
+ * 
  * Now we convert our block tags, ensuring there's a double line at the end of them.
  * 
  * For each block tag (h1...6, p), strip the front, checking class. Check if there's an anchor inside it, 
  * then replace start and  end, and add a double return at end.
  * 
- * -----------------------------------------------------
- * 3. Convert tables
- * -----------------------------------------------------
+ * ### 3. Convert tables
+ * 
  * Loop over each table.
  * 
  * Check if any row or col spans, if not, convert to tab format.
  * 
- * -----------------------------------------------------
- * 4. Whitespace and blocks
- * -----------------------------------------------------
+ * #### 4. Whitespace and blocks
+ * 
  * Firstly we remove all return chars from our document.
  * 
  * Then we convert the paragraphs and line endings to whitespace.
  */
 component {
 
-	public wripper function init() {
+	public wripper function init(required string jsoupJarPath) {
 		
 		// Jsoup helper class
 		try {
-			this.jsoup = new coldSoup.coldSoup();
+			this.jsoup = new coldSoup.coldSoup(arguments.jsoupJarPath);
 		}
 		catch (any e) {
 			throw(message="Unable to create Jsoup object:" & e.message,detail="Wripper uses Jsoup to convert word html to markdown. Please ensure you have Jsoup included in your java class path
-				and the coldSoup component in your component path.<br><br>##<br><br>#e.detail#");
+				and the coldSoup component in your component path.");
 		}
 		
 		// line endings
@@ -169,8 +162,6 @@ component {
 		// anchors 
 		// 1. Remove anchors with no references (lots of them usually)
 		// 2. Apply ID of others to parent tag
-
-
 		local.nodes = local.doc.select("a[name]");
 		for (local.node in local.nodes) {
 			
@@ -231,7 +222,7 @@ component {
 			local.node.unwrap();
 		}
 
-		// parse tables but we can't put them back in until we' ve finished the rest of the processing
+		// parse tables but we can't put them back in until we've finished the rest of the processing
 		// add placeholders {{$tableX}}
 		local.nodes = doc.select("table");
 		local.tablecount = 1;

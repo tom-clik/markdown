@@ -2,7 +2,7 @@
 
 # flexmark test
 
-Sample Flexmark markdown parsing
+Sample Flexmark markdown parsing using the 
 
 ## Usage
 
@@ -11,15 +11,14 @@ Configure and run Preview in browser
 --->
 
 <cfscript>
-
 testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
-variables.inputFile  = "markdown_test_doc.md";
-variables.template  = "template_test.html";
+variables.inputFile  = testPath & "markdown_test_doc.md";
+variables.template  = testPath & "template_test.html";
 
 flexmark = new markdown.flexmark(attributes="true",typographic=true);
 
-mytest = FileRead(testpath & variables.inputFile,"utf-8");
-mytemplate = FileRead(testpath & variables.template,"utf-8");
+mytest = FileRead(variables.inputFile,"utf-8");
+mytemplate = FileRead(variables.template,"utf-8");
 
 meta = {};
 
