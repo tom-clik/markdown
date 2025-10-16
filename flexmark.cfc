@@ -49,14 +49,15 @@ component name="flexmark" {
 			boolean typographic = false,
 			boolean tasklist = true,
 			boolean yaml = true,
-			string  jsoupjar
+			boolean superscript = true,
+			string  jsoupjar   // optional for full featured parsing using markdown() rather than toHtml()
 			) {
 	
 		this.cr = newLine();
 		
+		variables.useJsoup = isDefined("arguments.jsoupjar");
 		try {
 			this.coldsoup      = new coldsoup.coldsoup(arguments.jsoupjar);
-			variables.useJsoup = true;
 		}
 		catch (any e) {
 			variables.useJsoup = false;
@@ -97,15 +98,19 @@ component name="flexmark" {
 		variables.parser = ParserClass.builder( options ).build();
 		variables.renderer = HtmlRendererClass.builder( options ).build();
 
-		
 		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
 		
+		// used to preserve mustache vars. They get wrecked by Flexmark if we don't do this (don't know why)
 		this.mustachepattern    = this.patternObj.compile("(\{{2,3})(\w+)(\}{2,3})",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
 		this.reversemustachepattern    = this.patternObj.compile("(\[{2,3})(\w+)(\]{2,3})",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
 		
+		// variable replace syntax. Replace ${var} with variables from meta data
+		// also cope with {$var}
+		this.varpattern    = this.patternObj.compile("(\$\{|\{\$)([A-Za-z0-9.]*[^{}])\}",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
+
 		//  deprecated
 		this.alphapattern  = this.patternObj.compile("(?m)^@[\w\[\]]+\.?\w*\s+.+?\s*$",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
-		this.varpattern    = this.patternObj.compile("(?m)\{\$\w*\_\w*\}",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
+		
 		
 		return this;
 	
@@ -161,6 +166,9 @@ component name="flexmark" {
 		if (optionsSet.keyExists("yaml") && optionsSet["yaml"]) {
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.yaml.front.matter.YamlFrontMatterExtension").create());
 		}
+		if (optionsSet.keyExists("superscript") && optionsSet["superscript"]) {
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.superscript.SuperscriptExtension").create());
+		}
 
 		return extensions;
 	}
@@ -171,19 +179,19 @@ component name="flexmark" {
 	 * Returns a struct with keys 
 	 *
 	 * html
-	 * :The rendered html
+	 * :   The rendered html
 	 * data
-	 * : A struct of information about the document keyed by element id. Contaings heading text
+	 * :   A struct of information about the document keyed by element id. Contains heading text
 	 * 
 	 * 
 	 *
 	 * @Text  Text to process
 	 * @options  Publishing options, see docProperties. Will override any set in YAML
-	 *
+	 * @replace_vars replace vars in ${var} format with values from meta data
 	 * @return Struct with keys html and data (see notes)
 	 *
 	 */
-	public struct function markdown (required string text, struct options={}) localmode=true {
+	public struct function markdown (required string text, struct options={}, replace_vars=true) localmode=true {
 		
 		if (!variables.useJsoup ) {
 			throw("use of markdown() function requires coldsoup. Use toHtml() instead.");
@@ -223,7 +231,9 @@ component name="flexmark" {
 		addContent(document=doc, meta=arguments.options.meta);
 		parseFootnotes(doc);
 
-		doc.html = replaceVars(doc.html, doc.data.meta);
+		if (arguments.replace_vars) {
+			doc.html = replaceVars(doc.html, doc.data.meta);
+		}
 		
 		return doc;
 
@@ -312,7 +322,7 @@ component name="flexmark" {
 	 * variables
 	 *
 	 **/
-	public string function replaceVars(html,data) {
+	public string function replaceVars(html,data) localmode=true {
 		
 		//get around problem of extra p surrounding toc
 		arguments.html    = REReplace(arguments.html,"\s*\<p[^>]*?\>\s*(\{\$toc\}\s*)\<\/p\>","\1");
@@ -321,43 +331,63 @@ component name="flexmark" {
 		arguments.html    = REReplace(arguments.html,"%%varUndrscReplace%%","_","all");
 
 		// find all variable names
-		local.arrVarNames = REMatch("\{\$[^}]+\}",arguments.html);
-		local.sVarNames   = {};
-		
-		// create lookup struct of all vars present in text.
-		for (local.i in local.arrVarNames) {
-			local.varName = ListFirst(local.i,"{}$");
-			// TODO: only works for one level
-			if (ListLen(local.varName,".") gt 1) {
-				if (IsDefined("arguments.data.#local.varName#")) {
-					local.sVarNames[local.varName] = arguments.data[ListFirst(local.varName,".")][ListLast(local.varName,".")];
+		matcher = this.varpattern.matcher(arguments.html);
+
+		// build cache of replacement values. Variables may be keyed e.g.
+		// meta.something and there's no quick lookup
+		replaceCache = {};
+
+		// use java buffer for single pass
+		buffer = createObject("java", "java.lang.StringBuffer");
+
+		// loop over them and relpace
+		while (matcher.find()){
+
+			varname = local.matcher.group( javacast("int",2) );
+			
+			if (! replaceCache.keyExists( varname ) ) {
+				// TODO: only works for one level (and horrible) 
+				if (ListLen( varname,".") gt 1) {
+					if (IsDefined("arguments.data.#varname#")) {
+						replaceCache[varname] = arguments.data[ListFirst(varname,".")][ListLast(varname,".")];
+					}
+					else {
+						replaceCache[varname] = local.matcher.group() ;
+					}
+				}
+				else {
+					if (StructKeyExists(arguments.data, varname)) {
+						replaceCache[varname] = arguments.data[varname];
+					}
+					else {
+						replaceCache[varname] = local.matcher.group() ;
+					}
 				}
 			}
-			else {
-				if (StructKeyExists(arguments.data, local.varName)) {
-					local.sVarNames[local.varName] = arguments.data[local.varName];
-				}
+			try{
+				matcher.appendReplacement(buffer, matcher.quoteReplacement( replaceCache[varname] ) ) ;
+			} 
+			catch (any e) {
+				local.extendedinfo = {"error"=e,"replaceCache"=replaceCache,"data"=data};
+				throw(
+					extendedinfo = SerializeJSON(local.extendedinfo),
+					message      = "Error replacing vars:" & e.message, 
+					detail       = e.detail
+				);
 			}
+			
 		}
 
-		for (local.varName in local.sVarNames) {
-			local.val = "";
-			// possible problem with referencing complex values.
-			if (IsSimpleValue(local.sVarNames[local.varName])) {
-				local.val = local.sVarNames[local.varName];
-			}
-			else if (IsStruct(local.sVarNames[local.varName]) AND StructKeyExists(local.sVarNames[local.varName],"text")) {
-				local.val = local.sVarNames[local.varName].text;	
-			}
-			arguments.html = ReplaceNoCase(arguments.html,"{$#local.varName#}", local.val,"all");
+		matcher.appendTail(buffer);
 
-		}
+		arguments.html = buffer.toString();
 
 		return arguments.html;
 		
 	}
 
 	/**
+	 * DEPRECATED 
 	 * Parse attributes into a struct from a single tag string 
 	 * (e.g. [image id=xx]). Tag can be < or << or [ or [[ 
 	 * enclosed. Attributes can be single quoted, double quote 

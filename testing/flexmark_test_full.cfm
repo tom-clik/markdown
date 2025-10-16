@@ -24,13 +24,13 @@ mytemplate = FileRead(variables.template,"utf-8");
 
 meta = {};
 
-doc = flexmark.markdown(mytest);
+doc = flexmark.markdown(text=mytest,replace_vars=false);
 
-html = replace(mytemplate, "{$body}", doc.html);
-html = flexmark.replaceVars(html, meta);
+doc.data.meta.body = doc.html;
 
-writeOutput(doc.data.meta.toc);
-writeOutput(doc.html);
+html = flexmark.replaceVars(mytemplate, doc.data.meta);
+
+writeOutput(html);
 
 
 </cfscript>

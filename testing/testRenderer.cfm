@@ -28,19 +28,11 @@ for (test in tests) {
 	start = getTickCount();
 	
 	outhtml = flexmark.toHtml(mytext);
-	
-	if (myresult != outhtml) {
-		writeOutput("<p>#test# Failed</p>");
-		writeOutput("<pre>#htmlEditFormat(outhtml)#</pre>");
-		writeOutput("<p>Should be</p>");
-		writeOutput("<pre>#htmlEditFormat(myresult)#</pre>");
-	}
-	else {
-		end = getTickCount() - start;
-		writeOutput("<pre>#htmlEditFormat(outhtml)#</pre>");
-		writeOutput("<p>#test# Rendered in #end# ms</p>");
-	}
-
+	writeOutput("<div class='test'><h2>#test#</h2>");
+	writeOutput("<pre>#htmlEditFormat(outhtml)#</pre>");
+	writeOutput("<p>Should be</p>");
+	writeOutput("<pre>#htmlEditFormat(myresult)#</pre>");
+	writeOutput("</div>");
 }
 </cfscript>
 

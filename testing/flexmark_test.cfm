@@ -22,9 +22,12 @@ mytemplate = FileRead(variables.template,"utf-8");
 
 meta = {};
 
-html = flexmark.toHtml(mytest,meta);
+timer type="inline" {
+	html = flexmark.toHtml(mytest,meta);
+}
 
-html = replace(mytemplate, "{$body}", html);
+meta.body = html;
+
 html = flexmark.replaceVars(html, meta);
 
 writeOutput(html);
