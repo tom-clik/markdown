@@ -162,6 +162,12 @@ More text with a footnote[^footnote2]
 - Item 3
 <<<
 
+### Mustache vars shuold be untouched
+
+{{title}} {{author}}
+
+{{{title}}} {{{author}}}
+
 <div class="endmatter">
 
 ## Title: _{$title}_

@@ -27,6 +27,7 @@ timer type="inline" {
 }
 
 meta.body = html;
+meta.toc = "<p>TOC goes here in full version</p>";
 
 html = flexmark.replaceVars(html, meta);
 

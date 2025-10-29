@@ -29,6 +29,7 @@ doc = flexmark.markdown(text=mytest,replace_vars=false);
 doc.data.meta.body = doc.html;
 
 html = flexmark.replaceVars(mytemplate, doc.data.meta);
+html = flexmark.replaceVars(html, doc.data.meta);
 
 writeOutput(html);
 

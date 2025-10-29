@@ -31,11 +31,11 @@ component extends="testbox.system.BaseSpec"{
 		try {
 			local.markdown = new markdown.flexmark(jsoupjar=variables.jsoupJarPath);
 			local.mytest = FileRead(variables.testpath & variables.inputFile,"utf-8");
-			local.doc = local.markdown.markdown(local.mytest,{},variables.testpath);
-
+			local.doc = local.markdown.markdown(local.mytest,{});
 		}
 		catch (Any e) {
-				$assert.fail( "Failed to parse document #e.message#");
+			throw(e);
+			$assert.fail( "Failed to parse document #e.message#");
 		}
 	}
 	/**

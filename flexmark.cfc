@@ -110,7 +110,7 @@ component name="flexmark" {
 
 		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
 		
-		// used to preserve mustache vars. They get wrecked by Flexmark if we don't do this (don't know why)
+		// used to preserve mustache vars. They get wrecked by Flexmark if we don't do this (it thinks they are attribute strings)
 		this.mustachepattern    = this.patternObj.compile("(\{{2,3})(\w+)(\}{2,3})",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
 		this.reversemustachepattern    = this.patternObj.compile("(\[{2,3})(\w+)(\]{2,3})",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
 		
@@ -312,25 +312,30 @@ component name="flexmark" {
 	private string function replaceMustacheVars(required string text, boolean undo=false)  localmode=true {
 
 		if (arguments.undo) {
-			tagObjs = this.reversemustachepattern.matcher(arguments.text);
-			matchlist = "[,]";
-			replacelist = "{,}";
+			matcher = this.reversemustachepattern.matcher(arguments.text);
 		}
 		else {
-			tagObjs = this.mustachepattern.matcher(arguments.text);
-			matchlist = "{,}";
-			replacelist = "[,]";
+			matcher = this.mustachepattern.matcher(arguments.text);
 		}
 		
-		fixEntities = [];
-		while (tagObjs.find()){
-		    arrayAppend(fixEntities, local.tagObjs.group());
+		buffer = createObject("java", "java.lang.StringBuffer");
+
+		while (matcher.find()){
+			
+			triple = matcher.group( 1 ).len() eq 3;
+			if (arguments.undo) { 
+				rep = "{{" & (triple ? "{" : "") & matcher.group( 2 ) & "}}" & (triple ? "}" : "");
+			}
+			else {
+				rep = "[[" & (triple ? "[" : "") & matcher.group( 2 ) & "]]" & (triple ? "]" : "");
+			}
+			matcher.appendReplacement(buffer, rep ) ;
 		}
-		for (entity in fixEntities) {
-			entity_r = replaceList(entity,matchlist,replacelist);
-			arguments.text = replace(arguments.text, entity, entity_r);
-		}
-		return arguments.text;
+		
+		matcher.appendTail(buffer);
+
+		return buffer.toString();
+
 	}
 
 	/**
@@ -345,7 +350,7 @@ component name="flexmark" {
 	public string function replaceVars(html,data) localmode=true {
 		
 		//get around problem of extra p surrounding toc
-		arguments.html    = REReplace(arguments.html,"\s*\<p[^>]*?\>\s*(\{\$toc\}\s*)\<\/p\>","\1");
+		arguments.html    = REReplace(arguments.html,"\s*\<p[^>]*?\>\s*((\$\{|\{\$)toc\}\s*)\<\/p\>","\1");
 		
 		// deprecated underscore handler
 		arguments.html    = REReplace(arguments.html,"%%varUndrscReplace%%","_","all");
