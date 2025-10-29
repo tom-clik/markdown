@@ -50,17 +50,25 @@ component name="flexmark" {
 			boolean tasklist = true,
 			boolean yaml = true,
 			boolean superscript = true,
-			string  jsoupjar   // optional for full featured parsing using markdown() rather than toHtml()
+			string  jsoupjar,   // optional for full featured parsing using markdown() rather than toHtml()
+			coldsoup coldsoupObj // pass in instantiated coldsoup Object instead of creating one
 			) {
 	
 		this.cr = newLine();
 		
-		variables.useJsoup = isDefined("arguments.jsoupjar");
-		try {
-			this.coldsoup      = new coldsoup.coldsoup(arguments.jsoupjar);
-		}
-		catch (any e) {
-			variables.useJsoup = false;
+		variables.useJsoup = isDefined("arguments.jsoupjar") OR isDefined("arguments.coldsoupObj") ;
+		if ( variables.useJsoup ) {
+			if ( isDefined("arguments.coldsoupObj") ) {
+				this.coldsoup = arguments.coldsoupObj;
+			}
+			else {
+				try {
+					this.coldsoup      = new coldsoup.coldsoup(arguments.jsoupjar);
+				}
+				catch (any e) {
+					throw("Unable to instantiate coldsoup:" & e.message);
+				}
+			}
 		}
 
 		variables.yaml = arguments.yaml;
@@ -72,10 +80,12 @@ component name="flexmark" {
 			"notoc" = ""
 		};
 
-		variables.unwrapAnchors = arguments.unwrapAnchors;
-
+		// unwrapAnchors requires use of ColdSoup helper library.
+		variables.unwrapAnchors = arguments.unwrapAnchors && variables.useJsoup ;
+		
 		local.optionString = "";
-		for (var option in arguments) {
+		for (var option in ["tables","abbreviation","admonition","anchorlink","anchorlinks_wrap_text","attributes","autolink","definition","emoji","escapedcharacter","footnote","strikethrough","unwrapAnchors","softbreaks","macros","typographic","tasklist","yaml","superscript"]) {
+
 			local.optionString = listAppend(local.optionString, option & "=" & arguments[option]);
 		}
 
@@ -171,6 +181,7 @@ component name="flexmark" {
 		}
 
 		return extensions;
+
 	}
 
 	/**
@@ -229,6 +240,7 @@ component name="flexmark" {
 		StructAppend(doc.data.meta, meta);
 		
 		addContent(document=doc, meta=arguments.options.meta);
+
 		parseFootnotes(doc);
 
 		if (arguments.replace_vars) {
@@ -250,6 +262,7 @@ component name="flexmark" {
 		arguments.text  = replaceMustacheVars(arguments.text);
 
 		local.document = variables.parser.parse(arguments.text);
+
 		if (variables.yaml) {
 			local.yamlVisitor = createObject( "java", "com.vladsch.flexmark.ext.yaml.front.matter.AbstractYamlFrontMatterVisitor");
 			local.yamlVisitor.visit(document);
@@ -279,8 +292,16 @@ component name="flexmark" {
 			
 		}
 
+		
+
 		arguments.text = variables.renderer.render(local.document);
 		arguments.text  = replaceMustacheVars(arguments.text,true);
+
+		if (variables.unwrapAnchors) {
+			local.node = this.coldsoup.parse(arguments.text);
+			unwrapHeaders(local.node);
+			arguments.text = local.node.body().html();
+		}
 
 		return arguments.text; 
 
@@ -300,7 +321,6 @@ component name="flexmark" {
 			matchlist = "{,}";
 			replacelist = "[,]";
 		}
-
 		
 		fixEntities = [];
 		while (tagObjs.find()){
@@ -444,37 +464,10 @@ component name="flexmark" {
 		
 		// There is also a bug in Flexmark which removes ids if you're not using anchorlinks.
 		// Therefore the only way to get the ids is to use anchor links and assign the id to the parent element
-		
-		headers = arguments.document.node.select("h1,h2,h3,h4");
-		
-		for (  header in headers) {
-			
-			// this gets overridden in flexmark if auto headers is on. See next
-			id = header.id();
-			
-			// generate id from header text NB flexmark places the id and other attributes in to the <a> child tag
-			anchor = header.select("a");
-			if ( ArrayLen(anchor) ) {
-				tag = anchor.first();
-
-				id = tag.id();
-
-				href = anchor.attr("href");
-				if (IsDefined("href")) {
-					target = ListLast(href,"##");
-					
-					// flexmark always adds href to anchors. If it links to itself it's an anchor not a link.
-					if (id == target) {
-						tag.removeAttr("href");
-						if (variables.unwrapAnchors) {
-							this.coldsoup.copyAttributes(tag,header);
-							tag.unwrap();
-						}	
-					}
-				}
-			}
+		if (variables.unwrapAnchors) {
+			unwrapHeaders(arguments.document.node);
 		}
-		
+
 		// any divs with meta=true are meta data vars
 		if (arguments.meta) {
 			metadivs = arguments.document.node.select("[meta]");
@@ -612,6 +605,38 @@ component name="flexmark" {
 			}
 
 		}
+	}
+
+	private void function unwrapHeaders(required any node) localmode=true {
+		
+		headers = arguments.node.select("h1,h2,h3,h4");
+		
+		for (  header in headers) {
+			
+			// this gets overridden in flexmark if auto headers is on. See next
+			id = header.id();
+			
+			// generate id from header text NB flexmark places the id and other attributes in to the <a> child tag
+			anchor = header.select("a");
+			if ( ArrayLen(anchor) ) {
+				tag = anchor.first();
+
+				id = tag.id();
+
+				href = anchor.attr("href");
+				if (IsDefined("href")) {
+					target = ListLast(href,"##");
+					
+					// flexmark always adds href to anchors. If it links to itself it's an anchor not a link.
+					if (id == target) {
+						tag.removeAttr("href");
+						this.coldsoup.copyAttributes(tag,header);
+						tag.unwrap();
+					}
+				}
+			}
+		}
+
 	}
 
 	/**
