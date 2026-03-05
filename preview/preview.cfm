@@ -41,45 +41,61 @@ mappings = deserializeJSON( FileRead( mappingsFile ) );
 fileInfo = getFileDetails(url.filename,mappings);
 // dump(var=fileInfo,abort=1);
 
+// DM project set up to preview all files through this page. Quick bounce for PDFs or HTML.
+ext = ListLast(fileInfo.filename,".");
+if (ext neq "md") {
+	throw("Only markdown files can be previewed");
+}
+
+
 flexmark = new markdown.flexmark(attributes="true",typographic=true,jsoupjar=variables.jsoupJarPath);
 
 fileInfo["md"] = FileRead(fileInfo.directory & "/" & fileInfo.filename,"utf-8");
 doc = flexmark.markdown(text=fileInfo.md,replace_vars=false);
-fileInfo["html"] = doc.html;
 fileInfo["meta"] = doc.data.meta;
+fileInfo["html"] = flexmark.replaceVars(doc.html, fileInfo.meta);
 
-writeDump(var=fileInfo,abort=1);
+
+for (field in fileInfo.meta) {
+	temp = fileInfo.meta[field];
+	if (ListLast(temp,".") eq "md") {
+		tempPath= getCanonicalPath(fileInfo.directory & "/" & temp )
+		if (! FileExists( tempPath ) ) { throw("Meta  File (#tempPath#) not found.");}
+		tempData = FileRead(tempPath);
+		fileInfo.meta[field] = flexmark.toHTML(tempData);
+	}
+}
 
 StructAppend( fileInfo.meta, {"save"=0,"pdf"=0},false);
 
-if ( fileInfo.pdf ) {
-	fileInfo.save = 1;
+if ( fileInfo.meta.pdf ) {
+	fileInfo.meta.save = 1;
 }
 
-if ( fileInfo.meta.keyExists(template) ) {
+if ( fileInfo.meta.keyExists("template") ) {
 	url.template = fileInfo.meta.template;
 }
 if (url.template != ""){
-	templatePath= getCanonicalPath(fileInfo.directory & url.template )
+	templatePath= getCanonicalPath(fileInfo.directory & "/" & url.template )
 	fileInfo.meta.body = fileInfo.html;
 	if (! FileExists( templatePath ) ) { throw("template  File (#templatePath#) not found.");}
 	template = FileRead(templatePath);
-	doc.html = flexmark.replaceVars(template, fileInfo.meta);
+	doc.html = template
 }
+
+doc.html = flexmark.replaceVars(doc.html, fileInfo.meta);
 
 if ( fileInfo.meta.save ) {
 	fileInfo.outputFile = fileInfo.directory & "/" & Replace(fileInfo.filename,".md", ".html") ;
 	fileWrite(fileInfo.outputFile, doc.html);
 	
 	if ( fileInfo.meta.pdf ) { 
-		convertPDF( fileInfo.outputFile );
+		fileInfo["pdfFile"] = convertPDF( fileInfo.outputFile );
 		writeOutput("File saved to #fileInfo.pdfFile#");
 	}
 	else {
 		writeOutput("File saved to #fileInfo.outputFile#");
 	}
-
-
 }
 else {
 	writeOutput(doc.html);
@@ -126,6 +142,7 @@ string function convertPDF( inputFile ) localmode=true {
 		
 	}
 	else {
+		throw("Prince not defined");
 		html = FileRead( arguments.inputFile, "UTF-8");
 		
 		cfdocument(
