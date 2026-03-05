@@ -6,7 +6,7 @@ CF Markdown provides a convenient wrapper for the Flexmark Java library. It prov
 
 ### 1. Flexmark JAR
 
-Ensure Flexmark the [flexmark jar](https://mvnrepository.com/artifact/com.vladsch.flexmark/flexmark-all) is [loadable by your app](https://cfdocs.org/java). This can either be by putting it into your server's Java classpath or in a path defined in `application.javaSettings.loadPaths`. The latter is recommended.
+`flexmark.cfc` defaults to Lucee Java settings that load [flexmark-all](https://mvnrepository.com/artifact/com.vladsch.flexmark/flexmark-all) from Maven. If you prefer, you can still provide your own [Java settings](https://cfdocs.org/java) or classpath configuration.
 
 ### 2. CF Markdown
 
@@ -17,6 +17,26 @@ flexmark = new markdown.flexmark();
 ```
 
 You should now be able to use the `toHtml()` method to convert markdown to HTML.
+
+
+### Lucee 6.2 Java settings
+
+`flexmark.cfc` now defaults to Lucee `javaSettings` with a Maven dependency for `com.vladsch.flexmark:flexmark-all`, so jars do not need to be globally discoverable.
+
+```
+flexmark = new markdown.flexmark();
+```
+
+You can override the default Flexmark Maven version or supply your own Java settings if needed.
+
+```
+flexmark = new markdown.flexmark(
+	flexmarkVersion = "0.64.8",
+	javaSettings = {
+		reloadOnChange = false
+	}
+);
+```
 
 ### 3. JSoup JAR
 
