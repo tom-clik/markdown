@@ -11,13 +11,14 @@ Configure and run Preview in browser
 --->
 
 <cfscript>
-jsoupJarPath = server.system.environment.javalib & "\jsoup-1.20.1.jar";
 
 testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
 variables.inputFile  = testPath & "markdown_test_doc.md";
 variables.template  = testPath & "template_test.html";
 
-flexmark = new markdown.flexmark(attributes="true",typographic=true,jsoupjar=variables.jsoupJarPath);
+coldsoupObj = new coldsoup.coldsoup();
+
+flexmark = new markdown.flexmark(attributes="true",typographic=true,coldsoupObj=coldsoupObj);
 
 mytest = FileRead(variables.inputFile,"utf-8");
 mytemplate = FileRead(variables.template,"utf-8");

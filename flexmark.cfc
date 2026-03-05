@@ -52,7 +52,6 @@ component name="flexmark" {
 			boolean superscript = true,
 			string flexmarkVersion = "0.64.8",
 			struct javaSettings, // optional Lucee Java settings struct used when loading flexmark classes
-			string  jsoupjar,   // optional for full featured parsing using markdown() rather than toHtml()
 			coldsoup coldsoupObj // pass in instantiated coldsoup Object instead of creating one
 			) {
 	
@@ -62,17 +61,17 @@ component name="flexmark" {
 			StructAppend(variables.javaSettings, arguments.javaSettings, true);
 		}
 		
-		variables.useJsoup = isDefined("arguments.jsoupjar") OR isDefined("arguments.coldsoupObj") ;
+		variables.useJsoup = 1 ;
 		if ( variables.useJsoup ) {
 			if ( isDefined("arguments.coldsoupObj") ) {
 				this.coldsoup = arguments.coldsoupObj;
 			}
 			else {
 				try {
-					this.coldsoup      = new coldsoup.coldsoup(arguments.jsoupjar);
+					this.coldsoup      = new coldsoup.coldsoup();
 				}
 				catch (any e) {
-					throw("Unable to instantiate coldsoup:" & e.message);
+					variables.useJsoup = 0 ;
 				}
 			}
 		}
