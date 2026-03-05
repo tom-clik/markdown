@@ -97,7 +97,7 @@ component name="flexmark" {
 
 		var HtmlRendererClass = javaClass("com.vladsch.flexmark.html.HtmlRenderer");
 		var ParserClass = javaClass("com.vladsch.flexmark.parser.Parser");
-		var options = javaClass("com.vladsch.flexmark.util.data.MutableDataSet").init();
+		var options = javaClass("com.vladsch.flexmark.util.data.MutableDataSet");
 		var extensions = optionList(optionsSet=arguments);
 		
 		options.set(ParserClass.EXTENSIONS,extensions);
