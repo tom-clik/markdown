@@ -6,7 +6,7 @@ test linebreaker method of Wripper
 
 <cfscript>
 // Path to JSOUP jar
-jsoupJarPath = server.system.environment.javalib & "\jsoup-1.20.1.jar";
+jsoupJarPath = server.system.environment.javalib & "\jsoup-1.22.1.jar";
 fileIn  = ExpandPath("sources/checkov_plays.md");
 fileOut =  ExpandPath("_out/") & Replace(ListLast(fileIn,"\/"),".md","_out.md");
 

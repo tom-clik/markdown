@@ -3,7 +3,7 @@
 component extends="testbox.system.BaseSpec"{
      
      function beforeTests(){
-     	variables.jsoupJarPath = server.system.environment.javalib & "\jsoup-1.20.1.jar";
+     	variables.jsoupJarPath = server.system.environment.javalib & "\jsoup-1.22.1.jar";
      	variables.testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
 		variables.inputFile  = "wripper_test_doc2.htm";
      }
