@@ -3,6 +3,7 @@
 component extends="testbox.system.BaseSpec"{
      
      function beforeTests(){
+     	variables.jsoupJarPath = server.system.environment.javalib & "\jsoup-1.22.1.jar";
      	variables.testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
 		variables.inputFile  = "wripper_test_doc2.htm";
      }
@@ -18,7 +19,7 @@ component extends="testbox.system.BaseSpec"{
 	*/
 	function createComponent(){
 		try {
-			local.wripper = new markdown.tools.wripper();
+			local.wripper = new markdown.tools.wripper(variables.jsoupJarPath);
 		}
 		catch (Any e) {
 			$assert.fail( "Failed to create wripper component");
@@ -29,7 +30,7 @@ component extends="testbox.system.BaseSpec"{
 	*/
 	function parseDocument(){
 		try {
-			local.wripper = new markdown.tools.wripper();
+			local.wripper = new markdown.tools.wripper(variables.jsoupJarPath);
 			local.mytest = FileRead(variables.testpath & variables.inputFile,"utf-8");
 			local.doc = local.wripper.wrip(local.mytest);
 

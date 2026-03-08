@@ -6,44 +6,25 @@ CF Markdown provides a convenient wrapper for the Flexmark Java library. It prov
 
 ### 1. Flexmark JAR
 
-`flexmark.cfc` defaults to Lucee Java settings that load [flexmark-all](https://mvnrepository.com/artifact/com.vladsch.flexmark/flexmark-all) from Maven. If you prefer, you can still provide your own [Java settings](https://cfdocs.org/java) or classpath configuration.
+To load the library you need to pass in the path to the actual JAR. I have tried using the new Maven dependency but for some reason it just doesn't work.
 
 ### 2. CF Markdown
 
 Download this repository to a component path and test your install by trying to create a new flexmark component.
 
 ```
-flexmark = new markdown.flexmark();
+flexmark = new markdown.flexmark(jarpath=path_to_jar);
 ```
 
 You should now be able to use the `toHtml()` method to convert markdown to HTML.
 
-
-### Lucee 6.2 Java settings
-
-`flexmark.cfc` now defaults to Lucee `javaSettings` with a Maven dependency for `com.vladsch.flexmark:flexmark-all`, so jars do not need to be globally discoverable.
-
-```
-flexmark = new markdown.flexmark();
-```
-
-You can override the default Flexmark Maven version or supply your own Java settings if needed.
-
-```
-flexmark = new markdown.flexmark(
-	flexmarkVersion = "0.64.8",
-	javaSettings = {
-		reloadOnChange = false
-	}
-);
-```
 
 ### 3. JSoup JAR
 
 To use the more advance functions such as TOC creation, you can install [Jsoup](https://mvnrepository.com/artifact/org.jsoup/jsoup) in the same way as the Flexmark library and ensure it loads.
 
 ```
-jSoupClass = createObject( "java", "org.jsoup.Jsoup" );
+jSoupClass = createObject( "java", "org.jsoup.Jsoup", pathtojar );
 ```
 
 ### 4. ColdSoup
@@ -53,7 +34,7 @@ If you install JSoup you will also need [ColdSoup](https://github.com/tom-clik/c
 Test your install by trying to create a new coldsoup component.
 
 ```
-coldsoup = new coldsoup.coldsoup();
+coldsoup = new coldsoup.coldsoup(jarpath=path_to_jar);
 ```
 
 ## Usage
@@ -61,7 +42,7 @@ coldsoup = new coldsoup.coldsoup();
 Initiate as a singleton pattern component in a persistent scope and then call the toHTML method.
 
 ```
-application.flexmark = new markdown.flexmark();
+application.flexmark = new markdown.flexmark(jarpath=path_to_jar);
 
 data = {};
 html = application.flexmark.toHTML(markdown,data);

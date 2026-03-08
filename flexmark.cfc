@@ -31,47 +31,42 @@ Call one of the conversion methods, `toHtml` or `Markdown`. The latter requires 
 component name="flexmark" {
 
 	public function init(
-			boolean tables=true,
-			boolean abbreviation=true,
-			boolean admonition=true,
-			boolean anchorlink=true,
-			boolean anchorlinks_wrap_text=true,
-			boolean attributes=false,
-			boolean autolink=true,
-			boolean definition=true,
-			boolean emoji=true,
-			boolean escapedcharacter=true,
-			boolean footnote=true,
-			boolean strikethrough=true,
-			boolean unwrapAnchors=true,
-			boolean softbreaks=false,
-			boolean macros=true,
-			boolean typographic = false,
-			boolean tasklist = true,
-			boolean yaml = true,
-			boolean superscript = true,
-			string flexmarkVersion = "0.64.8",
-			struct javaSettings, // optional Lucee Java settings struct used when loading flexmark classes
-			coldsoup coldsoupObj // pass in instantiated coldsoup Object instead of creating one
-			) {
+		 required string jarpath,
+				boolean tables=true,
+				boolean abbreviation=true,
+				boolean admonition=true,
+				boolean anchorlink=true,
+				boolean anchorlinks_wrap_text=true,
+				boolean attributes=false,
+				boolean definition=true,
+				boolean emoji=true,
+				boolean escapedcharacter=true,
+				boolean footnote=true,
+				boolean strikethrough=true,
+				boolean unwrapAnchors=true,
+				boolean softbreaks=false,
+				boolean macros=true,
+				boolean typographic = false,
+				boolean tasklist = true,
+				boolean yaml = true,
+				boolean superscript = true,
+				string  jsoupjar,   // optional for full featured parsing using markdown() rather than toHtml()
+				coldsoup coldsoupObj // pass in instantiated coldsoup Object instead of creating one
+				) {
 	
 		this.cr = newLine();
-		variables.javaSettings = defaultJavaSettings(arguments.flexmarkVersion);
-		if ( isDefined("arguments.javaSettings") ) {
-			StructAppend(variables.javaSettings, arguments.javaSettings, true);
-		}
 		
-		variables.useJsoup = 1 ;
+		variables.useJsoup = isDefined("arguments.jsoupjar") OR isDefined("arguments.coldsoupObj") ;
 		if ( variables.useJsoup ) {
 			if ( isDefined("arguments.coldsoupObj") ) {
 				this.coldsoup = arguments.coldsoupObj;
 			}
 			else {
 				try {
-					this.coldsoup      = new coldsoup.coldsoup();
+					this.coldsoup      = new coldsoup.coldsoup(arguments.jsoupjar);
 				}
 				catch (any e) {
-					variables.useJsoup = 0 ;
+					throw("Unable to instantiate coldsoup:" & e.message);
 				}
 			}
 		}
@@ -88,32 +83,32 @@ component name="flexmark" {
 		// unwrapAnchors requires use of ColdSoup helper library.
 		variables.unwrapAnchors = arguments.unwrapAnchors && variables.useJsoup ;
 		
-		local.optionString = "";
-		for (var option in ["tables","abbreviation","admonition","anchorlink","anchorlinks_wrap_text","attributes","autolink","definition","emoji","escapedcharacter","footnote","strikethrough","unwrapAnchors","softbreaks","macros","typographic","tasklist","yaml","superscript"]) {
+		// works ok with just JAR path
+		this.bundleName = arguments.jarpath;
 
-			local.optionString = listAppend(local.optionString, option & "=" & arguments[option]);
-		}
+		var options = createObject("java", "com.vladsch.flexmark.util.data.MutableDataSet","C:\dev\java\flexmark-all-0.64.0-lib.jar").init();
 
-		var HtmlRendererClass = javaClass("com.vladsch.flexmark.html.HtmlRenderer");
-		var ParserClass = javaClass("com.vladsch.flexmark.parser.Parser");
-		var options = javaClass("com.vladsch.flexmark.util.data.MutableDataSet");
+		// load option constants
+		var Parser       = createObject("java", "com.vladsch.flexmark.parser.Parser","C:\dev\java\flexmark-all-0.64.0-lib.jar");
+		var HtmlRenderer = createObject("java", "com.vladsch.flexmark.html.HtmlRenderer","C:\dev\java\flexmark-all-0.64.0-lib.jar");
+
 		var extensions = optionList(optionsSet=arguments);
-		
-		options.set(ParserClass.EXTENSIONS,extensions);
+
+		options.set(Parser.EXTENSIONS,extensions);
 		
 		if (arguments.softbreaks) {
 			options.set(HtmlRendererClass.SOFT_BREAK, "<br />\n");
 		}
 		if (arguments.anchorlinks_wrap_text) {
-			var AnchorLinkExtensionClass = javaClass("com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension"); 
+			var AnchorLinkExtensionClass = createObject( "java", "com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension", this.bundleName); 
 			options.set(AnchorLinkExtensionClass.ANCHORLINKS_WRAP_TEXT,arguments.anchorlinks_wrap_text);
 		}
 
-		// Create our parser and renderer - both using the options.
-		variables.parser = ParserClass.builder( options ).build();
-		variables.renderer = HtmlRendererClass.builder( options ).build();
+		// build parser/renderer
+		variables.parser   = Parser.builder(options).build();
+		variables.renderer = HtmlRenderer.builder(options).build();
 
-		this.patternObj    = javaClass("java.util.regex.Pattern");
+		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
 		
 		// used to preserve mustache vars. They get wrecked by Flexmark if we don't do this (it thinks they are attribute strings)
 		this.mustachepattern    = this.patternObj.compile("(\{{2,3})(\w+)(\}{2,3})",this.patternObj.MULTILINE + this.patternObj.UNIX_LINES);
@@ -128,85 +123,58 @@ component name="flexmark" {
 		
 		
 		return this;
-
-	}
-
-	private struct function defaultJavaSettings(required string flexmarkVersion) {
-
-		return {
-			maven = [
-				{
-					groupId = "com.vladsch.flexmark",
-					artifactId = "flexmark-all",
-					version = arguments.flexmarkVersion
-				}
-			]
-		};
-
-	}
-
-	private any function javaClass(required string className) {
-
-		if ( !structIsEmpty(variables.javaSettings) ) {
-			return createObject("java", arguments.className, variables.javaSettings);
-		}
-
-		return createObject("java", arguments.className);
-
+	
 	}
 
 	private function optionList(struct optionsSet) {
 
-		var extensions = javaClass("java.util.ArrayList");
+		var extensions = createObject( "java", "java.util.ArrayList" ).init();
 
 		if (optionsSet.keyExists("tables") && optionsSet["tables"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.tables.TablesExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.tables.TablesExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("abbreviation") && optionsSet["abbreviation"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.abbreviation.AbbreviationExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.abbreviation.AbbreviationExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("admonition") && optionsSet["admonition"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.admonition.AdmonitionExtension").create());
-			import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.admonition.AdmonitionExtension", this.bundleName).create());
+			// import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
 		}
 		if (optionsSet.keyExists("anchorlink") && optionsSet["anchorlink"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("attributes") && optionsSet["attributes"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.attributes.AttributesExtension").create());
-		}
-		if (optionsSet.keyExists("autolink") && optionsSet["autolink"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.autolink.AutolinkExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.attributes.AttributesExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("definition") && optionsSet["definition"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.definition.DefinitionExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.definition.DefinitionExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("emoji") && optionsSet["emoji"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.emoji.EmojiExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.emoji.EmojiExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("escapedcharacter") && optionsSet["escapedcharacter"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.escaped.character.EscapedCharacterExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.escaped.character.EscapedCharacterExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("footnote") && optionsSet["footnote"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.footnotes.FootnoteExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.footnotes.FootnoteExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("macros") && optionsSet["macros"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.macros.MacrosExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.macros.MacrosExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("strikethrough") && optionsSet["strikethrough"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("tasklist") && optionsSet["tasklist"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("typographic") && optionsSet["typographic"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.typographic.TypographicExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.typographic.TypographicExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("yaml") && optionsSet["yaml"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.yaml.front.matter.YamlFrontMatterExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.yaml.front.matter.YamlFrontMatterExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("superscript") && optionsSet["superscript"]) {
-			extensions.add(javaClass("com.vladsch.flexmark.ext.superscript.SuperscriptExtension").create());
+			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.superscript.SuperscriptExtension", this.bundleName).create());
 		}
 
 		return extensions;
@@ -290,10 +258,10 @@ component name="flexmark" {
 		
 		arguments.text  = replaceMustacheVars(arguments.text);
 
-		local.document = variables.parser.parse(arguments.text);
+		local.document = variables.parser.parse( javacast("string", arguments.text ) );
 
 		if (variables.yaml) {
-			local.yamlVisitor = javaClass("com.vladsch.flexmark.ext.yaml.front.matter.AbstractYamlFrontMatterVisitor");
+			local.yamlVisitor = createObject( "java", "com.vladsch.flexmark.ext.yaml.front.matter.AbstractYamlFrontMatterVisitor",this.bundlename);
 			local.yamlVisitor.visit(document);
 			local.metadata = local.yamlVisitor.getData();
 			if (local.metadata.size()) {
@@ -347,7 +315,7 @@ component name="flexmark" {
 			matcher = this.mustachepattern.matcher(arguments.text);
 		}
 		
-		buffer = javaClass("java.lang.StringBuffer");
+		buffer = createObject("java", "java.lang.StringBuffer");
 
 		while (matcher.find()){
 			
@@ -392,7 +360,7 @@ component name="flexmark" {
 		replaceCache = {};
 
 		// use java buffer for single pass
-		buffer = javaClass("java.lang.StringBuffer");
+		buffer = createObject("java", "java.lang.StringBuffer");
 
 		// loop over them and relpace
 		while (matcher.find()){
@@ -458,7 +426,7 @@ component name="flexmark" {
 		attrVals = ListRest(sText," ");
 
 		if (NOT IsDefined("variables.attrPattern")) {
-			patternObj = javaClass("java.util.regex.Pattern");
+			patternObj = createObject( "java", "java.util.regex.Pattern");
 			myPattern = "(\w+)(\s*=\s*(""(.*?)""|'(.*?)'|([^'"">\s]+)))";
 			variables.attrPattern = patternObj.compile(myPattern);
 		}
