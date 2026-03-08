@@ -12,10 +12,12 @@ Configure and run Preview in browser
 
 <cfscript>
 testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
+jarPath = server.system.environment.javalib & "\flexmark-all-0.64.0-lib.jar";
+
 variables.inputFile  = testPath & "markdown_test_doc.md";
 variables.template  = testPath & "template_test.html";
 
-flexmark = new markdown.flexmark(jarpath="C:\dev\java\flexmark-all-0.64.0-lib.jar",attributes="true",typographic=true);
+flexmark = new markdown.flexmark(jarpath=jarPath,attributes="true",typographic=true);
 
 mytest = FileRead(variables.inputFile,"utf-8");
 mytemplate = FileRead(variables.template,"utf-8");

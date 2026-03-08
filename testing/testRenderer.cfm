@@ -16,8 +16,8 @@ Define the tests to run, ensure there is a markdown source and expected result f
 tests = ['definition','attributes','footnote','abbreviation','admonition','autolink','admonition'];
 
 // we run all html through jsoup parse so we get a better comparison
-
-jsoup = createObject( "java", "org.jsoup.Jsoup" );
+jsoupJarPath = server.system.environment.javalib & "\jsoup-1.22.1.jar";
+jsoup = createObject( "java", "org.jsoup.Jsoup","jsoupJarPath" );
 flexmark = new markdown.flexmark(attributes="true",typographic=true);
 sources = ExpandPath("sources/rendertests/");
 

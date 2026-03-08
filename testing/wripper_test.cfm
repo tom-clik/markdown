@@ -16,6 +16,8 @@ Test Wripper Word HTML to markdown conversion
 /********************************************
  * Config 
  * ******************************************/
+// Path to JSOUP jar
+jsoupJarPath = server.system.environment.javalib & "\jsoup-1.22.1.jar";
 // Input file 
 fileIn  = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\wripper_test_doc2.htm";
 // output file
@@ -38,7 +40,7 @@ if (! DirectoryExists(dirOut)) {
 }
 
 try {
-	wripperObj = new markdown.tools.wripper();
+	wripperObj = new markdown.tools.wripper(jsoupJarPath);
 }
 catch (any e) {
 	local.extendedinfo = {"tagcontext"=e.tagcontext};
