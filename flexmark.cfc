@@ -38,7 +38,6 @@ component name="flexmark" {
 				boolean anchorlink=true,
 				boolean anchorlinks_wrap_text=true,
 				boolean attributes=false,
-				boolean autolink=true,
 				boolean definition=true,
 				boolean emoji=true,
 				boolean escapedcharacter=true,
@@ -84,30 +83,18 @@ component name="flexmark" {
 		// unwrapAnchors requires use of ColdSoup helper library.
 		variables.unwrapAnchors = arguments.unwrapAnchors && variables.useJsoup ;
 		
-		local.optionString = "";
-		for (var option in ["tables","abbreviation","admonition","anchorlink","anchorlinks_wrap_text","attributes","autolink","definition","emoji","escapedcharacter","footnote","strikethrough","unwrapAnchors","softbreaks","macros","typographic","tasklist","yaml","superscript"]) {
-
-			local.optionString = listAppend(local.optionString, option & "=" & arguments[option]);
-		}
-
-		// // Install the bundle through OSGI mechanism to avoid conflicts
-		// local.CFMLEngine = createObject( "java", "lucee.loader.engine.CFMLEngineFactory" ).getInstance();
-		// local.OSGiUtil = createObject( "java", "lucee.runtime.osgi.OSGiUtil" );
-		// local.resource = CFMLEngine.getResourceUtil().toResourceExisting( getPageContext(), arguments.jarpath );
-		// local.bundle = OSGiUtil.installBundle( CFMLEngine.getBundleContext(), local.resource, true);
-
-		// // Ask the installed bundle what its symbolic name is
-		// this.bundleName = local.bundle.getSymbolicName();
-
-
+		// works ok with just JAR path
 		this.bundleName = arguments.jarpath;
 
-		var HtmlRendererClass = createObject( "java", "com.vladsch.flexmark.html.HtmlRenderer", this.bundleName );
-		var ParserClass = createObject( "java", "com.vladsch.flexmark.parser.Parser", this.bundleName );
-		var options = createObject( "java", "com.vladsch.flexmark.util.data.MutableDataSet", this.bundleName );
+		var options = createObject("java", "com.vladsch.flexmark.util.data.MutableDataSet","C:\dev\java\flexmark-all-0.64.0-lib.jar").init();
+
+		// load option constants
+		var Parser       = createObject("java", "com.vladsch.flexmark.parser.Parser","C:\dev\java\flexmark-all-0.64.0-lib.jar");
+		var HtmlRenderer = createObject("java", "com.vladsch.flexmark.html.HtmlRenderer","C:\dev\java\flexmark-all-0.64.0-lib.jar");
+
 		var extensions = optionList(optionsSet=arguments);
-		
-		options.set(ParserClass.EXTENSIONS,extensions);
+
+		options.set(Parser.EXTENSIONS,extensions);
 		
 		if (arguments.softbreaks) {
 			options.set(HtmlRendererClass.SOFT_BREAK, "<br />\n");
@@ -117,9 +104,9 @@ component name="flexmark" {
 			options.set(AnchorLinkExtensionClass.ANCHORLINKS_WRAP_TEXT,arguments.anchorlinks_wrap_text);
 		}
 
-		// Create our parser and renderer - both using the options.
-		variables.parser = ParserClass.builder( options ).build();
-		variables.renderer = HtmlRendererClass.builder( options ).build();
+		// build parser/renderer
+		variables.parser   = Parser.builder(options).build();
+		variables.renderer = HtmlRenderer.builder(options).build();
 
 		this.patternObj    = createObject( "java", "java.util.regex.Pattern" );
 		
@@ -141,7 +128,7 @@ component name="flexmark" {
 
 	private function optionList(struct optionsSet) {
 
-		var extensions = createObject( "java", "java.util.ArrayList" );
+		var extensions = createObject( "java", "java.util.ArrayList" ).init();
 
 		if (optionsSet.keyExists("tables") && optionsSet["tables"]) {
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.tables.TablesExtension", this.bundleName).create());
@@ -151,16 +138,13 @@ component name="flexmark" {
 		}
 		if (optionsSet.keyExists("admonition") && optionsSet["admonition"]) {
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.admonition.AdmonitionExtension", this.bundleName).create());
-			import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
+			// import com.vladsch.flexmark.ext.admonition.AdmonitionExtension;
 		}
 		if (optionsSet.keyExists("anchorlink") && optionsSet["anchorlink"]) {
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("attributes") && optionsSet["attributes"]) {
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.attributes.AttributesExtension", this.bundleName).create());
-		}
-		if (optionsSet.keyExists("autolink") && optionsSet["autolink"]) {
-			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.autolink.AutolinkExtension", this.bundleName).create());
 		}
 		if (optionsSet.keyExists("definition") && optionsSet["definition"]) {
 			extensions.add(createObject( "java", "com.vladsch.flexmark.ext.definition.DefinitionExtension", this.bundleName).create());
