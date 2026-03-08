@@ -26,6 +26,9 @@ timer type="inline" {
 	html = flexmark.toHtml(mytest,meta);
 }
 
+// Hack for admonition styling -- needed to hide the SVGs (it uses the `use` mechanism)
+writeOutput("<style>.adm-hidden {display:none}</style>");
+
 meta.body = html;
 meta.toc = "<p>TOC goes here in full version</p>";
 
