@@ -15,7 +15,7 @@ testPath = getDirectoryFromPath(getCurrentTemplatePath()) & "sources\";
 variables.inputFile  = testPath & "markdown_test_doc.md";
 variables.template  = testPath & "template_test.html";
 
-flexmark = new markdown.flexmark(attributes="true",typographic=true);
+flexmark = new markdown.flexmark(jarpath="C:\dev\java\flexmark-all-0.64.0-lib.jar",attributes="true",typographic=true);
 
 mytest = FileRead(variables.inputFile,"utf-8");
 mytemplate = FileRead(variables.template,"utf-8");
