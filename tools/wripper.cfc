@@ -40,11 +40,11 @@
  */
 component {
 
-	public wripper function init() {
+	public wripper function init(jarpath) {
 		
 		// Jsoup helper class
 		try {
-			this.jsoup = new coldSoup.coldSoup();
+			this.jsoup = new coldSoup.coldSoup(jarpath);
 		}
 		catch (any e) {
 			throw(message="Unable to create Jsoup object:" & e.message,detail="Wripper uses Jsoup to convert word html to markdown. Please ensure you have Jsoup included in your java class path
