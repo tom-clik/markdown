@@ -86,11 +86,11 @@ component name="flexmark" {
 		// works ok with just JAR path
 		this.bundleName = arguments.jarpath;
 
-		var options = createObject("java", "com.vladsch.flexmark.util.data.MutableDataSet","C:\dev\java\flexmark-all-0.64.0-lib.jar").init();
+		var options = createObject("java", "com.vladsch.flexmark.util.data.MutableDataSet",this.bundlename).init();
 
 		// load option constants
-		var Parser       = createObject("java", "com.vladsch.flexmark.parser.Parser","C:\dev\java\flexmark-all-0.64.0-lib.jar");
-		var HtmlRenderer = createObject("java", "com.vladsch.flexmark.html.HtmlRenderer","C:\dev\java\flexmark-all-0.64.0-lib.jar");
+		var Parser       = createObject("java", "com.vladsch.flexmark.parser.Parser",this.bundlename);
+		var HtmlRenderer = createObject("java", "com.vladsch.flexmark.html.HtmlRenderer",this.bundlename);
 
 		var extensions = optionList(optionsSet=arguments);
 
