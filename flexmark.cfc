@@ -661,6 +661,7 @@ component name="flexmark" {
 
 		insection = false;
 
+		count = 0;
 		for (id in arguments.data.content) {
 			heading = arguments.data.content[id];
 			toc = heading.toc ? : true; // toc can be set to false via notoc mechanism
@@ -675,11 +676,12 @@ component name="flexmark" {
 					insection = true;
 				}
 				html &= "    <p class=""toc#level#""><a href=""###heading.id#"">#heading.text#</a></p>" & newLine();
+				count++;
 			}
 			
 		}
 		// close tocsection tag
-		if (arguments.data.toclevel gt 1) {
+		if (count && arguments.data.toclevel gt 1) {
 			html &= "</div>";
 		}
 

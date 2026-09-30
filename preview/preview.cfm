@@ -41,15 +41,18 @@ fileInfo = getFileDetails(url.filename,mappings);
 // DM project set up to preview all files through this page. Quick bounce for PDFs or HTML.
 ext = ListLast(fileInfo.filename,".");
 if (ext neq "md") {
-	throw("Only markdown files can be previewed");
+	cfcontent( file="#fileInfo.directory#/#fileInfo.filename#" );
 }
 
 fileInfo["md"] = FileRead(fileInfo.directory & "/" & fileInfo.filename,"utf-8");
 
-fileInfo.md = parseBridge(fileInfo.md);
-// writeOutput(htmlCodeFormat(fileinfo.md));abort;
-
 doc = flexmark.markdown(text=fileInfo.md,replace_vars=false);
+
+// add publish_code to coldlight index files to run configured settings
+if ( doc.data.meta.keyExists("publish_code") ) {
+	location( "/coldlight/sample/process.cfm?code=#doc.data.meta.publish_code#");
+}
+
 fileInfo["meta"] = doc.data.meta;
 fileInfo["html"] = flexmark.replaceVars(doc.html, fileInfo.meta);
 
@@ -96,7 +99,8 @@ if (options.template != ""){
 }
 
 doc.html = flexmark.replaceVars(doc.html, fileInfo.meta);
-
+// Render Bridge content once for preview, saved HTML and PDF alike.
+doc.html = parseBridge(doc.html, fileInfo.directory);
 
 if ( options.save ) {
 	fileInfo.outputFile = fileInfo.directory & "/" & Replace(fileInfo.filename,".md", ".html") ;
@@ -187,14 +191,14 @@ string function convertPDF( inputFile ) localmode=true {
 
 }
 
-string function parseBridge(html) {
+string function parseBridge(required string html, string path="") localmode=true {
 
 	// Use to easy instantiation of coldSoupObj
 	
 	
 	bridgeObj = new bridge.html_plugin(coldSoupObj=flexmark.coldSoupObj);
 
-	return bridgeObj.process(arguments.html);
+	return bridgeObj.process(html=arguments.html, path=arguments.path);
 
 }
 </cfscript>
