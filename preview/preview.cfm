@@ -99,8 +99,15 @@ if (options.template != ""){
 }
 
 doc.html = flexmark.replaceVars(doc.html, fileInfo.meta);
-// Render Bridge content once for preview, saved HTML and PDF alike.
-doc.html = parseBridge(doc.html, fileInfo.directory);
+
+if (fileInfo.meta.keyExists("plugins") ) {
+	if (! isArray(fileInfo.meta.plugins)){ fileInfo.meta.plugins = listToArray(fileInfo.meta.plugins ) }
+	for ( plugin in fileInfo.meta.plugins ) {
+		pluginObj = new bridge.html_plugin(coldSoupObj=flexmark.coldSoupObj);
+		pluginObj.process(doc=doc, path=fileInfo.directory);
+	}
+}
+
 
 if ( options.save ) {
 	fileInfo.outputFile = fileInfo.directory & "/" & Replace(fileInfo.filename,".md", ".html") ;
@@ -191,14 +198,4 @@ string function convertPDF( inputFile ) localmode=true {
 
 }
 
-string function parseBridge(required string html, string path="") localmode=true {
-
-	// Use to easy instantiation of coldSoupObj
-	
-	
-	bridgeObj = new bridge.html_plugin(coldSoupObj=flexmark.coldSoupObj);
-
-	return bridgeObj.process(html=arguments.html, path=arguments.path);
-
-}
 </cfscript>
