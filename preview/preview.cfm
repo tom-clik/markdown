@@ -127,7 +127,7 @@ else {
 }
 
 string function getFilePath(filename, mappings, rootdir) localmode=true {
-	info = getFileDetails(argumentCollection = arguments);
+	info = getFileDetails(argumentCollection = arguments, throwonerror=false);
 
 	if (info.found) {
 		ret = getCanonicalPath(info.directory & "/" & info.filename);
