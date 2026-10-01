@@ -22,7 +22,7 @@ Options to save HTML and convert to PDF can be supplied as URL parameters or YAM
 
 <cfscript>
 param name="url.filename";
-param name="url.template" default="clikwriter/_templates/html_standard.html";
+param name="url.template" default="";
 param name="url.pdf" default="0";
 param name="url.save" default="0";
 
