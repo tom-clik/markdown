@@ -54,18 +54,42 @@ if ( doc.data.meta.keyExists("publish_code") ) {
 }
 
 fileInfo["meta"] = doc.data.meta;
-fileInfo["html"] = flexmark.replaceVars(doc.html, fileInfo.meta);
 
-// YAML data with a value ending in .md will read from markdown file and converted to html
+// YAML data with a value ending in .md will read from markdown file and convert to html
 loop collection=fileInfo.meta key="field" value="value" {
-	if (ListLast(value,".") eq "md") {
+	ext = ListLast(value,".");
+	if (ListFind("md,html,json", ext)) {
+		filePath= getFilePath( filename=value, mappings=mappings, rootdir=fileInfo.directory );
+		if (! FileExists( filePath ) ) { throw("Import  File (#filePath#) not found.");}
+		contents = FileRead(filePath);
+		switch (ext) {
+			case "md":
+				fileInfo.meta[field] = flexmark.toHTML(contents);
+				break;
 
-		filePath= getFilePath( fileInfo.directory, mappings, value );
-
-		if (! FileExists( filePath ) ) { throw("Meta  File (#filePath#) not found.");}
-		fileInfo.meta[field] = flexmark.toHTML(FileRead(filePath));
+			case "json":
+				try {
+					data = deserializeJSON(contents);
+					if (field eq "import") {
+						StructAppend(fileInfo.meta, data, false);
+					}
+					else {
+						fileInfo.meta[field] = data;
+					}
+				}
+				catch(any e) {
+					throw("unable to sdeseriazlie import meta #v#");
+				}
+				break;
+			default:
+				fileInfo.meta[field] = contents;
+		
+		}
 	}
+	
 }
+
+fileInfo["html"] = flexmark.replaceVars(doc.html, fileInfo.meta);
 
 StructAppend(options, fileInfo.meta, true);
 
@@ -128,12 +152,12 @@ else {
 
 string function getFilePath(filename, mappings, rootdir) localmode=true {
 	info = getFileDetails(argumentCollection = arguments, throwonerror=false);
-
+	
 	if (info.found) {
 		ret = getCanonicalPath(info.directory & "/" & info.filename);
 	}
 	else {
-		ret = getCanonicalPath(arguments.rootdir & "/" & info.stem & "/" & info.filename);
+		ret = getCanonicalPath(arguments.rootdir & "/" & info.stem & info.filename);
 	}
 
 	return ret;
@@ -144,7 +168,7 @@ struct function getFileDetails(filename, mappings, boolean throwonerror=true) lo
 	ret = {};
 	arguments.filename = replace(arguments.filename, "\", "/", "all");
 	ret["filename"] = ListLast( arguments.filename, "/" );
-	ret["stem"] = Replace(arguments.filename, "/" & ret.filename,"") ;
+	ret["stem"] = ListLen(arguments.filename, "/") gt 1 ? Replace(arguments.filename, "/" & ret.filename,"") & "/" : "";
 	ret["found"] = 0;
 	
 	for (mapping in mappings) {
