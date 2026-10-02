@@ -6,9 +6,9 @@ Options to save HTML and convert to PDF can be supplied as URL parameters or YAM
 
 ## Usage
 
-1. Download jsoup-1.20.1.jar to a folder for your Java libs and esnure that folder is set in environment.javalib [^jsoup]
-1. Ensure flexmark is in your java class path 
-1. Create a markdown file and a mustache template
+1. Download jsoup (currently jsoup-1.22.1.jar) to a folder for your Java libs and esnure that folder is set in environment.javalib
+1. Download flexmark (flexmark-all-0.64.0-lib.jar) to the same folder
+1. Create a markdown file and optionally a mustache template
 1. Add mustache template relative path to YAML variable (see exmaple)
 1. Ensure a path mapping is saved in mappings.json
 	
@@ -18,78 +18,103 @@ Options to save HTML and convert to PDF can be supplied as URL parameters or YAM
 1. Preview
 
 
-[^jsoup]: We need a newer version of JSOUP to the one in Flexmark. Without explicitly setting the class path, the Flexmark one will probably be loaded
-
-
 --->
 
 <cfscript>
-param name="url.filename" default="clikwriter/fiona/ConsentForms/newest_treamtment.md";
-param name="url.template" default="";
+param name="url.filename";
+param name="url.template" default="templates/template_basic.tmpl";
+param name="url.pdf" default="0";
+param name="url.save" default="0";
 
-version = "jsoup-1.20.1.jar";
-if (! IsDefined( "server.system.environment.javalib" ) ) { throw("server.system.environment.javalib not defined. See notes");}
+options = duplicate(url);
 
-jsoupJarPath = server.system.environment.javalib & "\" & version
-if (! FileExists( jsoupJarPath ) ) { throw("JSOUP jar file (#jsoupJarPath#) not found");}
+flexmark = new markdown.testing.flexmarkTestObj();
 
 mappingsFile = expandPath( "./mappings.json");
 if (! FileExists( mappingsFile ) ) { throw("mappings File (#mappingsFile#) not found. Please create this from the available sample");}
 
 mappings = deserializeJSON( FileRead( mappingsFile ) );
 
+include "pathHelpers.cfm";
 fileInfo = getFileDetails(url.filename,mappings);
-// dump(var=fileInfo,abort=1);
 
 // DM project set up to preview all files through this page. Quick bounce for PDFs or HTML.
 ext = ListLast(fileInfo.filename,".");
 if (ext neq "md") {
-	throw("Only markdown files can be previewed");
+	cfcontent( file=fileInfo.path );
+	abort;
 }
 
+fileInfo["md"] = FileRead(fileInfo.path,"utf-8");
 
-flexmark = new markdown.flexmark(attributes="true",typographic=true,jsoupjar=variables.jsoupJarPath);
-
-fileInfo["md"] = FileRead(fileInfo.directory & "/" & fileInfo.filename,"utf-8");
 doc = flexmark.markdown(text=fileInfo.md,replace_vars=false);
+
+// add publish_code to coldlight index files to run configured settings
+if ( doc.data.meta.keyExists("publish_code") ) {
+	location( "/coldlight/sample/process.cfm?code=#doc.data.meta.publish_code#");
+}
+
 fileInfo["meta"] = doc.data.meta;
-fileInfo["html"] = flexmark.replaceVars(doc.html, fileInfo.meta);
 
-
-for (field in fileInfo.meta) {
-	temp = fileInfo.meta[field];
-	if (ListLast(temp,".") eq "md") {
-		tempPath= getCanonicalPath(fileInfo.directory & "/" & temp )
-		if (! FileExists( tempPath ) ) { throw("Meta  File (#tempPath#) not found.");}
-		tempData = FileRead(tempPath);
-		fileInfo.meta[field] = flexmark.toHTML(tempData);
+// YAML data with a value ending in .md will read from markdown file and convert to html
+loop collection=fileInfo.meta key="field" value="value" {
+	ext = ListLast(value,".");
+	if (ext eq "md") {
+		filePath= getFilePath( filename=value, mappings=mappings, rootdir=fileInfo.directory );
+		if (! FileExists( filePath ) ) { throw("Import  File (#filePath#) not found.");}
+		fileInfo.meta[field] = flexmark.toHTML(FileRead(filePath));
 	}
 }
 
-StructAppend( fileInfo.meta, {"save"=0,"pdf"=0},false);
+fileInfo["html"] = flexmark.replaceVars(doc.html, fileInfo.meta);
 
-if ( fileInfo.meta.pdf ) {
-	fileInfo.meta.save = 1;
+StructAppend(options, fileInfo.meta, true);
+
+if ( options.pdf ) {
+	options.save = 1;
 }
 
-if ( fileInfo.meta.keyExists("template") ) {
-	url.template = fileInfo.meta.template;
-}
-if (url.template != ""){
-	templatePath= getCanonicalPath(fileInfo.directory & "/" & url.template )
+if (options.template != ""){
+	templatePath= getFilePath( filename=options.template, mappings=mappings, rootdir= fileInfo.directory );
+	StructAppend(fileInfo.meta,{"author"="","description"=""},false);
 	fileInfo.meta.body = fileInfo.html;
 	if (! FileExists( templatePath ) ) { throw("template  File (#templatePath#) not found.");}
 	template = FileRead(templatePath);
-	doc.html = template
+	doc.html = template;
+
+	// asset can be added by adding list of filenames. They are added inline
+	for ( asset in ['style','script'] ) {
+		if ( fileInfo.meta.keyExists(asset) ) {
+			assets = "<#asset#>";
+			for ( filename in listToArray( fileInfo.meta[asset] ) ) {
+				assets &= FileRead( getFilePath( filename=filename, mappings=mappings, rootdir= fileInfo.directory ) );
+			}
+			assets &= "</#asset#>";
+			fileInfo.meta[asset] = assets;
+		}
+		else {
+			fileInfo.meta[asset] = "";
+		}
+	}
+	
 }
 
 doc.html = flexmark.replaceVars(doc.html, fileInfo.meta);
 
-if ( fileInfo.meta.save ) {
+if (fileInfo.meta.keyExists("plugins") ) {
+	if (! isArray(fileInfo.meta.plugins)){ fileInfo.meta.plugins = listToArray(fileInfo.meta.plugins ) }
+	for ( plugin in fileInfo.meta.plugins ) {
+		pluginObj = new bridge.html_plugin(coldSoupObj=flexmark.coldSoupObj);
+		pluginObj.process(doc=doc, path=fileInfo.directory);
+	}
+}
+
+
+if ( options.save ) {
 	fileInfo.outputFile = fileInfo.directory & "/" & Replace(fileInfo.filename,".md", ".html") ;
 	fileWrite(fileInfo.outputFile, doc.html);
 	
-	if ( fileInfo.meta.pdf ) { 
+	if ( options.pdf ) { 
 		fileInfo["pdfFile"] = convertPDF( fileInfo.outputFile );
 		writeOutput("File saved to #fileInfo.pdfFile#");
 	}
@@ -102,35 +127,13 @@ else {
 	abort;
 }
 
-struct function getFileDetails(filename, mappings) localmode=true {
-	ret = {};
-	arguments.filename = replace(arguments.filename, "\", "/", "all");
-	ret["filename"] = ListLast( arguments.filename, "/" );
-	ret["stem"] = Replace(arguments.filename, "/" & ret.filename,"") ;
-	found = 0;
-	for (mapping in mappings) {
-		if ( findNoCase(mapping, ret.stem) ) {
-			ret["directory"] = Replace( ret.stem, mapping, arguments.mappings[mapping]);
-			found = 1;
-			break;
-		}
-	}
-	
-	if (! found ) {
-		throw("path #ret.stem# not found in mappings");
-	}
-	
-	return ret;
-
-}
-
 string function convertPDF( inputFile ) localmode=true {
 	
 	pdfFile = Replace(arguments.inputFile,".html", ".pdf") ;
 
 	princeExecutable = server.system.environment.princeExecutable ? :  "C:/Program Files/Prince/engine/bin/prince.exe";
 	if ( FileExists( princeExecutable ) ) {
-		cfexecute(name=princeExecutable,arguments=arguments.inputFile,variable="res");
+		cfexecute(name=princeExecutable,arguments="'" & arguments.inputFile & "'",variable="res");
 
 		if (IsDefined("res") && res != "") {
 			local.extendedinfo = {"res"=res};
@@ -158,4 +161,5 @@ string function convertPDF( inputFile ) localmode=true {
 	return pdfFile;
 
 }
+
 </cfscript>
