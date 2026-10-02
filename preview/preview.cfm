@@ -22,7 +22,7 @@ Options to save HTML and convert to PDF can be supplied as URL parameters or YAM
 
 <cfscript>
 param name="url.filename";
-param name="url.template" default="";
+param name="url.template" default="templates/template_basic.tmpl";
 param name="url.pdf" default="0";
 param name="url.save" default="0";
 
@@ -35,16 +35,17 @@ if (! FileExists( mappingsFile ) ) { throw("mappings File (#mappingsFile#) not f
 
 mappings = deserializeJSON( FileRead( mappingsFile ) );
 
+include "pathHelpers.cfm";
 fileInfo = getFileDetails(url.filename,mappings);
-// dump(var=fileInfo,abort=1);
 
 // DM project set up to preview all files through this page. Quick bounce for PDFs or HTML.
 ext = ListLast(fileInfo.filename,".");
 if (ext neq "md") {
-	cfcontent( file="#fileInfo.directory#/#fileInfo.filename#" );
+	cfcontent( file=fileInfo.path );
+	abort;
 }
 
-fileInfo["md"] = FileRead(fileInfo.directory & "/" & fileInfo.filename,"utf-8");
+fileInfo["md"] = FileRead(fileInfo.path,"utf-8");
 
 doc = flexmark.markdown(text=fileInfo.md,replace_vars=false);
 
@@ -58,35 +59,11 @@ fileInfo["meta"] = doc.data.meta;
 // YAML data with a value ending in .md will read from markdown file and convert to html
 loop collection=fileInfo.meta key="field" value="value" {
 	ext = ListLast(value,".");
-	if (ListFind("md,html,json", ext)) {
+	if (ext eq "md") {
 		filePath= getFilePath( filename=value, mappings=mappings, rootdir=fileInfo.directory );
 		if (! FileExists( filePath ) ) { throw("Import  File (#filePath#) not found.");}
-		contents = FileRead(filePath);
-		switch (ext) {
-			case "md":
-				fileInfo.meta[field] = flexmark.toHTML(contents);
-				break;
-
-			case "json":
-				try {
-					data = deserializeJSON(contents);
-					if (field eq "import") {
-						StructAppend(fileInfo.meta, data, false);
-					}
-					else {
-						fileInfo.meta[field] = data;
-					}
-				}
-				catch(any e) {
-					throw("unable to sdeseriazlie import meta #v#");
-				}
-				break;
-			default:
-				fileInfo.meta[field] = contents;
-		
-		}
+		fileInfo.meta[field] = flexmark.toHTML(FileRead(filePath));
 	}
-	
 }
 
 fileInfo["html"] = flexmark.replaceVars(doc.html, fileInfo.meta);
@@ -105,7 +82,7 @@ if (options.template != ""){
 	template = FileRead(templatePath);
 	doc.html = template;
 
-	// assest can be added by adding list of filenames. They are added inline
+	// asset can be added by adding list of filenames. They are added inline
 	for ( asset in ['style','script'] ) {
 		if ( fileInfo.meta.keyExists(asset) ) {
 			assets = "<#asset#>";
@@ -148,43 +125,6 @@ if ( options.save ) {
 else {
 	writeOutput(doc.html);
 	abort;
-}
-
-string function getFilePath(filename, mappings, rootdir) localmode=true {
-	info = getFileDetails(argumentCollection = arguments, throwonerror=false);
-	
-	if (info.found) {
-		ret = getCanonicalPath(info.directory & "/" & info.filename);
-	}
-	else {
-		ret = getCanonicalPath(arguments.rootdir & "/" & info.stem & info.filename);
-	}
-
-	return ret;
-
-}
-
-struct function getFileDetails(filename, mappings, boolean throwonerror=true) localmode=true {
-	ret = {};
-	arguments.filename = replace(arguments.filename, "\", "/", "all");
-	ret["filename"] = ListLast( arguments.filename, "/" );
-	ret["stem"] = ListLen(arguments.filename, "/") gt 1 ? Replace(arguments.filename, "/" & ret.filename,"") & "/" : "";
-	ret["found"] = 0;
-	
-	for (mapping in mappings) {
-		if ( findNoCase(mapping, ret.stem) ) {
-			ret["directory"] = Replace( ret.stem, mapping, arguments.mappings[mapping]);
-			ret.found = 1;
-			break;
-		}
-	}
-	
-	if (! ret.found && arguments.throwonerror ) {
-		throw("path #ret.stem# not found in mappings");
-	}
-	
-	return ret;
-
 }
 
 string function convertPDF( inputFile ) localmode=true {
