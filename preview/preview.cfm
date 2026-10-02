@@ -34,6 +34,8 @@ mappingsFile = expandPath( "./mappings.json");
 if (! FileExists( mappingsFile ) ) { throw("mappings File (#mappingsFile#) not found. Please create this from the available sample");}
 
 mappings = deserializeJSON( FileRead( mappingsFile ) );
+mappings["templates"] = getCanonicalPath( getDirectoryFromPath( getCurrentTemplatePath() ) & "/templates");
+
 
 include "pathHelpers.cfm";
 fileInfo = getFileDetails(url.filename,mappings);
