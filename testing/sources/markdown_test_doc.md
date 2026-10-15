@@ -3,6 +3,11 @@ title: Document title
 author: Tom Peer
 toclevel: 2
 notoc: #title, .endmatter h2
+info: |
+  First line of information.
+  Second line of information.
+
+  A separate paragraph.
 ---
 
 # Document title here
